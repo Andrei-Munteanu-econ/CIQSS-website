@@ -33,11 +33,13 @@ placeholders; never hand-edit them — edit the master and regenerate.
 
 ## `/reservation/` redirect
 
-`reservation/index.html` is a standalone page (no WordPress layout) that sends visitors to the
-Google Apps Script computer-booking system. To publish it at `https://ciqss.uqam.ca/reservation/`,
-upload the `reservation/` folder to the WordPress web root (next to `wp-config.php`) via SFTP or the
-host's file manager. WordPress's `.htaccess` serves real directories before its own routing, so no
-WP page named `reservation` should exist. Purge the LiteSpeed cache afterwards.
+`https://ciqss.uqam.ca/reservation/` redirects (HTTP 302) to the Google Apps Script
+computer-booking system. It is configured in WordPress with the **Redirection** plugin
+(Tools → Redirection, group "Redirections"). If the Apps Script is redeployed under a new `/exec`
+URL, edit the target there. 302 is used on purpose so browsers don't cache the old target.
+
+`reservation/index.html` is an unused standalone fallback (meta refresh + JS, noindex, canonical)
+in case the plugin is ever removed. It would have to be uploaded to the web root via SFTP.
 
 ## Deploying an update
 
