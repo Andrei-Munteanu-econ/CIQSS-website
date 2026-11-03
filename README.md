@@ -31,6 +31,14 @@ placeholders; never hand-edit them — edit the master and regenerate.
 - `WEB_Landing page Web (Universités partenaires).docx` — original content brief.
 - `site_*.html`, `uqam_main.css`, `uqam_logo.svg` — reference scrapes/assets used for styling.
 
+## `/reservation/` redirect
+
+`reservation/index.html` is a standalone page (no WordPress layout) that sends visitors to the
+Google Apps Script computer-booking system. To publish it at `https://ciqss.uqam.ca/reservation/`,
+upload the `reservation/` folder to the WordPress web root (next to `wp-config.php`) via SFTP or the
+host's file manager. WordPress's `.htaccess` serves real directories before its own routing, so no
+WP page named `reservation` should exist. Purge the LiteSpeed cache afterwards.
+
 ## Deploying an update
 
 1. Edit `output/wordpress/ciqss-uqam-landing.html`.
