@@ -5,7 +5,7 @@
 - **Booking site:** https://script.google.com/macros/s/AKfycbzgE_lN2AWzTbcQvCm7bzf5fy8uheLRnaHcGYSW-6leyserfmL2deMPDPPlGUmqa-xu/exec
 - **Owner account:** reservation.ciqss.uqam@gmail.com (owns the spreadsheet, the script, the deployment and sends all emails)
 - **Spreadsheet:** "CIQSS booking" in that account's Google Drive. The script is under Extensions → Apps Script.
-- **Live version:** 5. To update the code: paste the new files, save, then Deploy → Manage deployments → pencil → Version: New version → Deploy. The URL stays the same.
+- **Live version:** 7. To update the code: paste the new files, save, then Deploy → Manage deployments → pencil → Version: New version → Deploy. The URL stays the same.
 
 ## Admin tasks
 
