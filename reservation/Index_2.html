@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --blue:#1a5fb4; --blue-l:#dbe8fb; --gray:#e4e4e4; --line:#d6d6d6; --text:#222; --muted:#666; --green:#e3f4e1; --red:#b3261e; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; color: var(--text); background: #f7f7f7; }
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; justify-content: space-between; }
+  h1 { font-size: 18px; margin: 0; }
+  h3 { margin: 0 0 8px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+  a { color: var(--blue); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab { border: 1px solid var(--line); background: #fff; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .tab.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn { border: 1px solid var(--line); background: #fff; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn.danger { color: var(--red); border-color: #e6b3ae; }
+  .lang { border: 1px solid var(--line); background: #fff; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--blue); }
+  .nav { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  select, input { font-size: 15px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid var(--line); }
+  .wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid #ececec; border-right: 1px solid #ececec; padding: 0; text-align: center; font-size: 13px; }
+  th { background: #f2f2f2; padding: 8px 10px; white-space: nowrap; }
+  .time { position: sticky; left: 0; background: #f7f7f7; padding: 6px 10px; white-space: nowrap; text-align: left; z-index: 1; font-variant-numeric: tabular-nums; }
+  td .c { display: block; min-width: 84px; padding: 9px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; margin: 0 auto; }
+  .free { cursor: pointer; }
+  .free:hover { background: var(--green); }
+  .mine { background: var(--blue-l); color: var(--blue); cursor: pointer; font-weight: 600; }
+  .taken { background: var(--gray); color: var(--muted); }
+  .taken.admin { cursor: pointer; }
+  .past { background: repeating-linear-gradient(45deg, #f1f1f1, #f1f1f1 4px, #fafafa 4px, #fafafa 8px); }
+  .off { background: #d9d9d9; }
+  th.offh { background: #e0e0e0; color: #999; }
+  /* 4-week calendar: one row per week */
+  .cal { display: grid; gap: 6px; margin-bottom: 16px; }
+  .cal .dh { font-size: 12px; color: var(--muted); text-align: center; padding-bottom: 2px; }
+  .cday { position: relative; font: inherit; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 6px 4px 8px; cursor: pointer; text-align: center; min-width: 0; color: var(--text); }
+  .cday:hover { border-color: var(--blue); }
+  .cday .n { font-size: 16px; font-weight: 600; }
+  .cday .m { font-size: 11px; color: var(--muted); }
+  .cday .cnt { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cday .bar { display: block; height: 4px; border-radius: 2px; background: #eee; margin: 4px 6px 0; overflow: hidden; }
+  .cday .bar b { display: block; height: 100%; background: #5aa65a; }
+  .cday.full .cnt { color: var(--red); }
+  .cday.sel { border-color: var(--blue); box-shadow: inset 0 0 0 2px var(--blue); background: var(--blue-l); }
+  .cday.past { background: #f1f1f1; color: #aaa; cursor: default; border-color: #ececec; }
+  .cday.past .m { color: #bbb; }
+  .cday .dot { position: absolute; top: 5px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); }
+  .day-title { margin: 4px 0 8px; font-size: 16px; }
+  .foot { font-size: 13px; margin: 8px 0 0; }
+  .warn { background: #fff1c9; padding: 8px 10px; border-radius: 6px; font-size: 14px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .card .actions { display: flex; gap: 6px; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eee; margin-top: 4px; }
+  .badge.Confirmed { background: var(--green); }
+  .badge.Awaiting { background: #fff1c9; }
+  .msg { padding: 10px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; }
+  .msg.ok { background: var(--green); }
+  .msg.err { background: #fde7e5; color: var(--red); }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  .modal { background: #fff; border-radius: 10px; padding: 18px; max-width: 380px; width: 100%; }
+  .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .login { max-width: 380px; margin: 60px auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+  .login-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .login input, .login .btn { width: 100%; }
+  .rules { margin-top: 12px; }
+</style>
+</head>
+<body>
+<div id="app"><p class="muted" style="padding:16px">Chargement… / Loading…</p></div>
+
+<script>
+  var URL_TOKEN = <?!= tokenJson ?>;
+  var URL_LANG = <?!= langJson ?>;
+  var LAB = <?!= labJson ?>;
+  var STORE_KEY = 'labBookingToken';
+  var LANG_KEY = 'labBookingLang';
+
+  // [French, English]
+  var STR = {
+    loading: ['Chargement…', 'Loading…'],
+    intro: ['Réservation des ordinateurs. Entrez votre adresse courriel : nous vous enverrons un lien personnel qui vous connecte.',
+      'Computer booking. Enter your email and we will send you a personal link that signs you in.'],
+    placeholder: ['votre.adresse@exemple.com', 'your.address@example.com'],
+    sendLink: ['M\'envoyer mon lien', 'Send me my link'],
+    spamNote: ['<b>Vérifiez vos courriels indésirables (pourriels)</b> : le courriel avec votre lien s\'y retrouve souvent.',
+      '<b>Check your junk/spam folder</b>: the email with your link often ends up there.'],
+    schedule: ['Horaire', 'Schedule'],
+    mine: ['Mes réservations', 'My bookings'],
+    all: ['Toutes les réservations (admin)', 'All bookings (admin)'],
+    admin: ['admin', 'admin'],
+    signOut: ['Se déconnecter', 'Sign out'],
+    noDays: ['Aucune journée ne peut être réservée pour le moment.', 'There are no bookable days right now.'],
+    allComputers: ['Tous les ordinateurs', 'All computers'],
+    ramOnly: ['{0} Go de RAM seulement', '{0} GB RAM only'],
+    legendFree: ['Libre (cliquez pour réserver)', 'Free (tap to book)'],
+    legendMine: ['Vos réservations', 'Yours'],
+    legendTaken: ['Occupé', 'Taken'],
+    legendOff: ['Indisponible pour le moment', 'Unavailable for now'],
+    calFree: ['{0} libres', '{0} free'],
+    calFull: ['Complet', 'Full'],
+    calMine: ['Vous avez une réservation ce jour-là', 'You have a booking that day'],
+    calHint: ['Choisissez une journée. Le chiffre indique le nombre de plages encore libres (tous ordinateurs confondus); le point bleu marque vos réservations.',
+      'Pick a day. The number is how many slots are still free (all computers together); the blue dot marks your bookings.'],
+    offTitle: ['Indisponible pour le moment', 'Unavailable for now'],
+    noComputers: ['Aucun ordinateur n\'est disponible pour la réservation.', 'No computers are available for booking.'],
+    timeCol: ['Heure', 'Time'],
+    gb: ['{0} Go', '{0} GB'],
+    you: ['Vous', 'You'],
+    booked: ['Réservé', 'Booked'],
+    bookTitle: ['Réserver {0}', 'Book {0}'],
+    ramParen: ['({0} Go de RAM)', '({0} GB RAM)'],
+    fromUntil: ['De {0} jusqu\'à {1}', 'From {0} until {1}'],
+    back: ['Retour', 'Back'],
+    book: ['Réserver', 'Book'],
+    confirm: ['Confirmer', 'Confirm'],
+    cancelBooking: ['Annuler la réservation', 'Cancel booking'],
+    cancel: ['Annuler', 'Cancel'],
+    askAdminCancel: ['Annuler cette réservation? {0} en sera avisé par courriel.', 'Cancel this booking? {0} will be notified by email.'],
+    askCancel: ['Annuler cette réservation?', 'Cancel this booking?'],
+    adminNote: ['Pour ajouter ou retirer des ordinateurs, ou modifier les règles, modifiez les onglets Computers et Config de la feuille de calcul. Les changements s\'appliquent immédiatement.',
+      'To add or remove computers, or change the rules, edit the Computers and Config tabs of the spreadsheet. Changes apply right away.'],
+    noUpcoming: ['Aucune réservation à venir.', 'No upcoming bookings.'],
+    otherLang: ['English', 'Français'],
+    'Booked': ['Réservée', 'Booked'],
+    'Awaiting confirmation': ['En attente de confirmation', 'Awaiting confirmation'],
+    'Confirmed': ['Confirmée', 'Confirmed'],
+    'Cancelled': ['Annulée', 'Cancelled']
+  };
+
+  var TOKEN = URL_TOKEN || store(STORE_KEY);
+  var LANG = URL_LANG || store(LANG_KEY) || 'fr';
+  var S = null;                         // session info from the server
+  var state = { tab: 'schedule', date: null, day: null, ram: 'all' };
+
+  function store(key, v) {
+    try {
+      if (v === undefined) return localStorage.getItem(key) || '';
+      if (v === null) localStorage.removeItem(key); else localStorage.setItem(key, v);
+    } catch (e) {}
+    return '';
+  }
+
+  function t(key) {
+    var pair = STR[key];
+    var s = pair ? pair[LANG === 'en' ? 1 : 0] : key;
+    for (var i = 1; i < arguments.length; i++) s = s.split('{' + (i - 1) + '}').join(String(arguments[i]));
+    return s;
+  }
+
+  function setLang(l) {
+    LANG = l === 'en' ? 'en' : 'fr';
+    store(LANG_KEY, LANG);
+    document.documentElement.lang = LANG;
+  }
+
+  // Calls a server function; the current language is always passed as the last argument.
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    args.push(LANG);
+    return new Promise(function (resolve, reject) {
+      var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) {
+        reject(e && e.message ? e.message : String(e));
+      });
+      r[fn].apply(r, args);
+    });
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function $(id) { return document.getElementById(id); }
+  function note(id, text, kind) { var el = $(id); if (el) el.innerHTML = text ? '<div class="msg ' + kind + '">' + esc(text) + '</div>' : ''; }
+  function langButton() { return '<button class="lang" id="lng" type="button" lang="' + (LANG === 'en' ? 'fr' : 'en') + '">' + t('otherLang') + '</button>'; }
+  function wireLang(after) { $('lng').onclick = function () { setLang(LANG === 'en' ? 'fr' : 'en'); after(); }; }
+
+  /* ---------- start ---------- */
+
+  function start() {
+    setLang(LANG);
+    if (!TOKEN) { renderLogin(); return; }
+    $('app').innerHTML = '<p class="muted" style="padding:16px">' + t('loading') + '</p>';
+    call('getSession', TOKEN).then(function (s) {
+      S = s;
+      store(STORE_KEY, TOKEN);
+      if (!state.date || !s.dates.some(function (d) { return d.value === state.date; })) state.date = s.dates.length ? s.dates[0].value : null;
+      renderShell();
+    }).catch(function (err) {
+      store(STORE_KEY, null); TOKEN = '';
+      renderLogin(err);
+    });
+  }
+
+  /* ---------- sign in ---------- */
+
+  function renderLogin(err) {
+    var typed = $('em') ? $('em').value : '';
+    $('app').innerHTML =
+      '<div class="login"><div class="login-top"><h1>' + esc(LAB) + '</h1>' + langButton() + '</div>' +
+      '<p class="muted">' + t('intro') + '</p>' +
+      '<div id="lmsg">' + (err ? '<div class="msg err">' + esc(err) + '</div>' : '') + '</div>' +
+      '<form id="lf"><input id="em" type="email" required placeholder="' + t('placeholder') + '" autocomplete="email" style="margin-bottom:10px">' +
+      '<button class="btn primary" id="lb">' + t('sendLink') + '</button></form>' +
+      '<p class="muted" style="margin:12px 0 0">' + t('spamNote') + '</p></div>';
+    $('em').value = typed;
+    wireLang(function () { renderLogin(); });
+    $('lf').onsubmit = function (e) {
+      e.preventDefault();
+      $('lb').disabled = true;
+      call('requestLoginLink', $('em').value)
+        .then(function (m) { note('lmsg', m, 'ok'); })
+        .catch(function (m) { note('lmsg', m, 'err'); })
+        .then(function () { $('lb').disabled = false; });
+    };
+  }
+
+  /* ---------- main layout ---------- */
+
+  function renderShell() {
+    var tabs = [['schedule', t('schedule')], ['mine', t('mine')]];
+    if (S.isAdmin) tabs.push(['all', t('all')]);
+    $('app').innerHTML =
+      '<header><h1>' + esc(S.labName) + '</h1>' +
+      '<span class="muted">' + esc(S.email) + (S.isAdmin ? ' · ' + t('admin') : '') + ' · <a href="#" id="out">' + t('signOut') + '</a> ' + langButton() + '</span>' +
+      (S.address || S.contact ? '<div class="muted" style="width:100%">' + esc(S.address) + (S.address && S.contact ? ' · ' : '') + esc(S.contact) + '</div>' : '') +
+      '</header>' +
+      '<main><div class="tabs">' + tabs.map(function (x) {
+        return '<button class="tab' + (state.tab === x[0] ? ' on' : '') + '" data-tab="' + x[0] + '">' + x[1] + '</button>';
+      }).join('') + '</div><div id="view"></div></main>';
+    $('out').onclick = function (e) { e.preventDefault(); store(STORE_KEY, null); TOKEN = ''; renderLogin(); };
+    wireLang(start); // reload the session so dates and rules come back in the new language
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
+      b.onclick = function () { state.tab = b.getAttribute('data-tab'); renderShell(); };
+    });
+    if (state.tab === 'schedule') renderSchedule();
+    else if (state.tab === 'mine') renderList(false);
+    else renderList(true);
+  }
+
+  /* ---------- schedule grid ---------- */
+
+  function renderSchedule() {
+    var v = $('view');
+    if (!S.dates.length) { v.innerHTML = '<p>' + t('noDays') + '</p>'; return; }
+    if (!S.dates.some(function (d) { return d.value === state.date; })) state.date = S.dates[0].value;
+    v.innerHTML =
+      '<div id="smsg"></div>' +
+      '<div id="cal" class="cal">' + (state.day ? '' : '<p class="muted">' + t('loading') + '</p>') + '</div>' +
+      '<p class="muted" style="margin:-8px 0 14px">' + t('calHint') + '</p>' +
+      '<h2 class="day-title" id="dtitle"></h2>' +
+      '<div class="nav">' +
+      '<select id="rsel"><option value="all">' + t('allComputers') + '</option></select>' +
+      '<span class="legend"><span><i style="background:#fff"></i>' + t('legendFree') + '</span><span><i style="background:var(--blue-l)"></i>' + t('legendMine') +
+      '</span><span><i style="background:var(--gray)"></i>' + t('legendTaken') + '</span><span><i style="background:#d9d9d9"></i>' + t('legendOff') + '</span></span>' +
+      '</div>' +
+      '<div class="wrap" id="grid"><p class="muted" style="padding:12px">' + t('loading') + '</p></div>' +
+      '<div id="foot"></div>' +
+      '<p class="muted rules">' + esc(S.rules) + '</p>';
+    $('rsel').onchange = function () { state.ram = this.value; if (state.day) drawGrid(state.day); };
+    $('cal').onclick = function (e) {
+      var el = e.target.closest('[data-day]');
+      if (!el || el.disabled) return;
+      state.date = el.getAttribute('data-day');
+      if (state.day) drawCalendar(state.day.calendar); // show the new selection right away
+      $('grid').innerHTML = '<p class="muted" style="padding:12px">' + t('loading') + '</p>';
+      loadDay();
+    };
+    if (state.day) drawCalendar(state.day.calendar);
+    loadDay();
+  }
+
+  function loadDay() {
+    var d = state.date;
+    call('getDay', TOKEN, d).then(function (day) {
+      if (d !== state.date) return;
+      state.day = day;
+      drawCalendar(day.calendar);
+      drawGrid(day);
+    }).catch(function (m) { note('smsg', m, 'err'); });
+  }
+
+  // The calendar: one row per week (the current week first), one button per open day
+  function drawCalendar(cal) {
+    var el = $('cal');
+    if (!el || !cal) return;
+    el.style.gridTemplateColumns = 'repeat(' + cal.heads.length + ', minmax(0, 1fr))';
+    var h = cal.heads.map(function (d) { return '<div class="dh">' + esc(d) + '</div>'; }).join('');
+    cal.weeks.forEach(function (week) {
+      week.forEach(function (d) {
+        var cls = 'cday ' + d.st + (d.value === state.date ? ' sel' : '');
+        var body = '<span class="n">' + d.day + '</span> <span class="m">' + esc(d.mon) + '</span>';
+        if (d.st === 'open') {
+          body += '<span class="cnt">' + esc(t('calFree', d.free)) + '</span>' +
+            '<span class="bar"><b style="width:' + Math.round(100 * d.free / Math.max(1, d.total)) + '%"></b></span>';
+        } else if (d.st === 'full') {
+          body += '<span class="cnt">' + t('calFull') + '</span>';
+        } else {
+          body += '<span class="cnt">&nbsp;</span>';
+        }
+        if (d.mine) body += '<span class="dot" title="' + esc(t('calMine')) + '"></span>';
+        h += '<button type="button" class="' + cls + '" data-day="' + d.value + '"' + (d.st === 'past' ? ' disabled' : '') + '>' + body + '</button>';
+      });
+    });
+    el.innerHTML = h;
+  }
+
+  function drawGrid(day) {
+    if (!day.computers.length) { $('grid').innerHTML = '<p style="padding:12px">' + t('noComputers') + '</p>'; return; }
+
+    // RAM filter options, built from the computers list
+    var rams = [];
+    day.computers.forEach(function (c) { if (c.ram && rams.indexOf(c.ram) < 0) rams.push(c.ram); });
+    rams.sort(function (a, b) { return Number(b) - Number(a); });
+    if (rams.indexOf(state.ram) < 0) state.ram = 'all';
+    var rsel = $('rsel');
+    if (rsel) {
+      rsel.innerHTML = '<option value="all">' + t('allComputers') + '</option>' + rams.map(function (r) {
+        return '<option value="' + esc(r) + '"' + (state.ram === r ? ' selected' : '') + '>' + esc(t('ramOnly', r)) + '</option>';
+      }).join('');
+      rsel.style.display = rams.length > 1 ? '' : 'none';
+    }
+    var cols = [];
+    day.computers.forEach(function (c, j) { if (state.ram === 'all' || c.ram === state.ram) cols.push(j); });
+
+    $('dtitle').textContent = day.dateLabel;
+
+    // Column headers: number/name (+ * when the computer has a note) and RAM; unavailable ones greyed out
+    var h = '<table><thead><tr><th class="time">' + t('timeCol') + '</th>' + cols.map(function (j) {
+      var c = day.computers[j];
+      var tip = !c.available ? t('offTitle') : c.note;
+      return '<th' + (c.available ? '' : ' class="offh"') + ' title="' + esc(tip) + '">' + esc(c.name) + (c.note ? '*' : '') +
+        (c.ram ? '<br><span style="font-weight:normal">' + esc(t('gb', c.ram)) + '</span>' : '') + '</th>';
+    }).join('') + '</tr></thead><tbody>';
+    day.slots.forEach(function (sl, i) {
+      h += '<tr><td class="time">' + esc(sl.startLabel) + '</td>';
+      cols.forEach(function (j) {
+        var cell = day.cells[i][j];
+        var cls = cell.st, txt = '&nbsp;';
+        if (cell.st === 'mine') txt = t('you') + (cell.status === 'Confirmed' ? ' ✓' : '');
+        else if (cell.st === 'taken') {
+          txt = cell.who ? esc(cell.who.split('@')[0]) : t('booked');
+          if (cell.id) cls += ' admin';
+        }
+        h += '<td><span class="c ' + cls + '" data-i="' + i + '" data-j="' + j + '">' + txt + '</span></td>';
+      });
+      h += '</tr>';
+    });
+    $('grid').innerHTML = h + '</tbody></table>';
+
+    // Footnotes for computers with a note (e.g. Poste Antoine)
+    $('foot').innerHTML = cols.filter(function (j) { return day.computers[j].note; }).map(function (j) {
+      var c = day.computers[j];
+      return '<p class="foot">* <b>' + esc(c.name) + '</b>' + (LANG === 'en' ? ': ' : ' : ') + esc(c.note) + '</p>';
+    }).join('');
+
+    $('grid').onclick = function (e) {
+      var el = e.target.closest('[data-i]');
+      if (!el) return;
+      var i = +el.getAttribute('data-i'), j = +el.getAttribute('data-j');
+      var cell = state.day.cells[i][j];
+      if (cell.st === 'free') bookDialog(i, j);
+      else if (cell.id) bookingDialog(cell, state.day.computers[j].name);
+    };
+  }
+
+  function bookDialog(i, j) {
+    var day = state.day, cell = day.cells[i][j], comp = day.computers[j].name;
+    var ram = day.computers[j].ram;
+    var compNote = day.computers[j].note;
+    var opts = '';
+    for (var n = 1; n <= cell.run; n++) {
+      opts += '<option value="' + n + '">' + esc(day.slots[i + n - 1].endLabel) + '</option>';
+    }
+    modal('<h3>' + esc(t('bookTitle', comp + (compNote ? '*' : ''))) + (ram ? ' <span class="muted" style="font-weight:normal">' + esc(t('ramParen', ram)) + '</span>' : '') + '</h3>' +
+      (compNote ? '<p class="warn">* ' + esc(compNote) + '</p>' : '') +
+      '<p>' + esc(day.dateLabel) + '<br>' + t('fromUntil', esc(day.slots[i].startLabel), '<select id="dur">' + opts + '</select>') + '</p>' +
+      '<div id="mmsg"></div>' +
+      '<div class="row"><button class="btn" data-close>' + t('back') + '</button><button class="btn primary" id="go">' + t('book') + '</button></div>');
+    $('go').onclick = function () {
+      $('go').disabled = true;
+      call('createBooking', TOKEN, comp, state.date, i, +$('dur').value).then(function (m) {
+        closeModal(); note('smsg', m, 'ok'); loadDay();
+      }).catch(function (m) { note('mmsg', m, 'err'); $('go').disabled = false; loadDay(); });
+    };
+  }
+
+  function bookingDialog(cell, comp) {
+    var mine = cell.st === 'mine';
+    modal('<h3>' + esc(comp) + '</h3>' +
+      '<p>' + esc(cell.when) + '<br><span class="muted">' + esc(t(cell.status)) + (cell.who && !mine ? ' · ' + esc(cell.who) : '') + '</span></p>' +
+      '<div id="mmsg"></div>' +
+      '<div class="row"><button class="btn" data-close>' + t('back') + '</button>' +
+      (mine && cell.status !== 'Confirmed' ? '<button class="btn primary" id="conf">' + t('confirm') + '</button>' : '') +
+      '<button class="btn danger" id="canc">' + t('cancelBooking') + '</button></div>');
+    if ($('conf')) $('conf').onclick = function () { act('confirmBooking', cell.id); };
+    $('canc').onclick = function () {
+      if (!mine && !confirm(t('askAdminCancel', cell.who))) return;
+      act('cancelBooking', cell.id);
+    };
+  }
+
+  function act(fn, id) {
+    call(fn, TOKEN, id).then(function (m) {
+      closeModal();
+      if (state.tab === 'schedule') { note('smsg', m, 'ok'); loadDay(); }
+      else renderShell();
+    }).catch(function (m) { note('mmsg', m, 'err'); });
+  }
+
+  /* ---------- lists ---------- */
+
+  function renderList(admin) {
+    var v = $('view');
+    v.innerHTML = '<div id="lmsg2"></div><div id="list"><p class="muted">' + t('loading') + '</p></div>' +
+      (admin ? '<p class="muted">' + t('adminNote') + '</p>' : '');
+    call(admin ? 'getAllUpcoming' : 'getMyBookings', TOKEN).then(function (list) {
+      $('list').innerHTML = list.length ? list.map(function (b) {
+        var badge = b.status === 'Awaiting confirmation' ? 'Awaiting' : b.status;
+        return '<div class="card"><div><b>' + esc(b.computer) + '</b> · ' + esc(b.when) +
+          (admin ? '<br><span class="muted">' + esc(b.email) + '</span>' : '') +
+          '<br><span class="badge ' + badge + '">' + esc(t(b.status)) + '</span></div>' +
+          '<div class="actions">' +
+          (!admin && b.status !== 'Confirmed' ? '<button class="btn primary" data-confirm="' + b.id + '">' + t('confirm') + '</button>' : '') +
+          '<button class="btn danger" data-cancel="' + b.id + '">' + t('cancel') + '</button></div></div>';
+      }).join('') : '<p class="muted">' + t('noUpcoming') + '</p>';
+      $('list').onclick = function (e) {
+        var c = e.target.closest('[data-confirm]'), x = e.target.closest('[data-cancel]');
+        if (c) call('confirmBooking', TOKEN, c.getAttribute('data-confirm')).then(function () { renderShell(); }).catch(function (m) { note('lmsg2', m, 'err'); });
+        if (x && confirm(t('askCancel'))) call('cancelBooking', TOKEN, x.getAttribute('data-cancel')).then(function () { renderShell(); }).catch(function (m) { note('lmsg2', m, 'err'); });
+      };
+    }).catch(function (m) { note('lmsg2', m, 'err'); });
+  }
+
+  /* ---------- modal ---------- */
+
+  function modal(html) {
+    closeModal();
+    var bg = document.createElement('div');
+    bg.className = 'modal-bg'; bg.id = 'modal';
+    bg.innerHTML = '<div class="modal">' + html + '</div>';
+    bg.onclick = function (e) { if (e.target === bg || e.target.hasAttribute('data-close')) closeModal(); };
+    document.body.appendChild(bg);
+  }
+  function closeModal() { var m = $('modal'); if (m) m.remove(); }
+
+  start();
+</script>
+</body>
+</html>
