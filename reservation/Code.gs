@@ -42,6 +42,7 @@ const DEFAULT_CONFIG = [
   ['DAY_START', '09:00', 'Opening time: start of the first slot (24-hour HH:MM)'],
   ['DAY_END', '17:00', 'Closing time: end of the last slot (24-hour HH:MM)'],
   ['OPEN_DAYS', 'Mon,Tue,Wed,Thu,Fri', 'Days the lab is open (Mon,Tue,Wed,Thu,Fri,Sat,Sun)'],
+  ['WEEK_HOURS', '', 'Opening hours per day, e.g. "Mon 09:00-20:00, Tue 09:00-17:00". Days not listed are closed. Blank = OPEN_DAYS from DAY_START to DAY_END. Set it on the Settings page of the booking site'],
   ['BOOKING_WEEKS', '4', 'How many weeks the calendar shows, one below the other (the current week is the first). Every open day in them can be booked'],
   ['MAX_SLOTS_PER_BOOKING', '8', 'Longest single booking, in slots (8 one-hour slots = a full day)'],
   ['MAX_UPCOMING_BOOKINGS', '5', 'Most upcoming bookings one person can hold at once (admins are exempt)'],
@@ -151,15 +152,15 @@ const MSG = {
   'status_Awaiting confirmation': ['En attente de confirmation', 'Awaiting confirmation'],
   status_Confirmed: ['Confirmée', 'Confirmed'],
   status_Cancelled: ['Annulée', 'Cancelled'],
-  rules: ['Ouvert : {0}, de {1} à {2}. Chaque plage dure {3} minutes et une réservation peut compter jusqu\'à {4} plage(s). ' +
-    'Vous pouvez utiliser un seul ordinateur à la fois et avoir jusqu\'à {5} réservations à venir. ' +
-    'Vous recevrez un courriel vous demandant de confirmer chaque réservation {6} avant son début (tant qu\'elle n\'est pas confirmée). ' +
-    'Si elle n\'est pas confirmée {7} h avant le début, elle est annulée et la plage est libérée. ' +
+  rules: ['Heures d\'ouverture : {0}. Chaque plage dure {1} minutes et une réservation peut compter jusqu\'à {2} plage(s). ' +
+    'Vous pouvez utiliser un seul ordinateur à la fois et avoir jusqu\'à {3} réservations à venir. ' +
+    'Vous recevrez un courriel vous demandant de confirmer chaque réservation {4} avant son début (tant qu\'elle n\'est pas confirmée). ' +
+    'Si elle n\'est pas confirmée {5} h avant le début, elle est annulée et la plage est libérée. ' +
     'Les autres personnes ne voient pas qui a réservé une plage.',
-    'Open {0}, {1}–{2}. Slots are {3} minutes; one booking can be up to {4} slot(s). ' +
-    'You can use one computer at a time and hold up to {5} upcoming bookings. ' +
-    'You will get an email asking you to confirm each booking {6} before it starts (while it is still unconfirmed). ' +
-    'If it is not confirmed {7} h before the start, it is cancelled and the slot is released to others. ' +
+    'Opening hours: {0}. Slots are {1} minutes; one booking can be up to {2} slot(s). ' +
+    'You can use one computer at a time and hold up to {3} upcoming bookings. ' +
+    'You will get an email asking you to confirm each booking {4} before it starts (while it is still unconfirmed). ' +
+    'If it is not confirmed {5} h before the start, it is cancelled and the slot is released to others. ' +
     'Other users cannot see who booked a slot.'],
   everyDay: ['tous les jours', 'every day'],
   adminBookedSubject: ['Réservation faite pour vous : {0}, {1}', 'Booked for you: {0}, {1}'],
@@ -190,6 +191,7 @@ const MSG = {
   setBadTime: ['Les heures d\'ouverture doivent s\'écrire HH:MM, p. ex. 09:00.', 'Opening hours must be written HH:MM, e.g. 09:00.'],
   setTimeOrder: ['L\'heure de fermeture doit laisser au moins une plage après l\'ouverture.', 'Closing time must leave at least one slot after opening.'],
   setNoDays: ['Cochez au moins un jour d\'ouverture.', 'Tick at least one opening day.'],
+  setTimeOrderDay: ['{0} : l\'heure de fermeture doit laisser au moins une plage après l\'ouverture.', '{0}: closing time must leave at least one slot after opening.'],
   setReminderOrder: ['Les rappels doivent partir avant la date limite de confirmation ({0} h avant le début).', 'Reminders must go out before the confirmation deadline ({0} h before the start).'],
   setReminder2Order: ['Le deuxième rappel doit être plus près du début que le premier ({0} h).', 'The second reminder must be closer to the start than the first ({0} h).'],
   setBadDomain: ['Domaine invalide : {0}', 'Invalid domain: {0}'],
@@ -421,8 +423,57 @@ function cfg_() {
     .sort((a, b) => b - a);
   if (!c.reminders.length) c.reminders = [c.deadlineH + 1];
   c.reminderH = c.reminders[c.reminders.length - 1]; // the last reminder: bookings made after it are confirmed right away
+
+  // Opening hours per day of the week (0 = Monday): { start, end } in minutes after midnight, or null when closed.
+  // WEEK_HOURS ("Mon 09:00-20:00, Tue 09:00-17:00") wins; otherwise OPEN_DAYS from DAY_START to DAY_END.
+  c.week = [null, null, null, null, null, null, null];
+  const wh = String(raw.WEEK_HOURS || '').trim();
+  if (wh) {
+    wh.split(/[,;\n]+/).forEach(part => {
+      const m = /^\s*([a-z]{3})[a-z]*\.?\s+(\d{1,2}[:h]\d{2})\s*[-–]\s*(\d{1,2}[:h]\d{2})\s*$/i.exec(part);
+      if (!m) return;
+      const k = EN_DAYS.map(d => d.toLowerCase()).indexOf(m[1].toLowerCase());
+      const s = toMinutes_(m[2].replace('h', ':'), -1), e = toMinutes_(m[3].replace('h', ':'), -1);
+      if (k >= 0 && s >= 0 && e > s) c.week[k] = { start: s, end: e };
+    });
+  }
+  if (!c.week.some(Boolean)) {
+    EN_DAYS.forEach((d, k) => {
+      if (!c.openDays.length || c.openDays.indexOf(d.toLowerCase()) >= 0) c.week[k] = { start: c.dayStart, end: c.dayEnd };
+    });
+  }
+  c.openDays = EN_DAYS.filter((d, k) => c.week[k]).map(d => d.toLowerCase());
   CFG_ = c;
   return c;
+}
+
+// Hours of a weekday (0 = Monday). Closed days fall back to DAY_START–DAY_END so admins can still book them.
+function hoursOfDow_(k, c) { return c.week[k] || { start: c.dayStart, end: c.dayEnd }; }
+
+// Hours of a date (yyyy-MM-dd)
+const DOW_CACHE_ = {};
+function hoursOn_(s, c) {
+  if (!(s in DOW_CACHE_)) DOW_CACHE_[s] = dow_(s);
+  return hoursOfDow_(DOW_CACHE_[s], c);
+}
+
+// "lundi 9 h–20 h; mardi au vendredi 9 h–17 h" / "Monday 09:00–20:00; Tuesday to Friday 09:00–17:00"
+function weekLabel_(c) {
+  const n = NAMES[LANG_];
+  const clock = m => time_(new Date(2000, 0, 3, 0, m));
+  const groups = [];
+  c.week.forEach((h, k) => {
+    if (!h) return;
+    const last = groups[groups.length - 1];
+    if (last && last.to === k - 1 && last.h.start === h.start && last.h.end === h.end) last.to = k;
+    else groups.push({ from: k, to: k, h: h });
+  });
+  return groups.map(g => {
+    const days = g.from === g.to ? n.dLong[g.from]
+      : g.to === g.from + 1 ? n.dLong[g.from] + T_('and') + n.dLong[g.to]
+      : n.dLong[g.from] + (LANG_ === 'en' ? ' to ' : ' au ') + n.dLong[g.to];
+    return days + ' ' + clock(g.h.start) + '–' + clock(g.h.end);
+  }).join('; ');
 }
 
 function toMinutes_(v, dflt) {
@@ -447,8 +498,9 @@ function ymd_(s) {
 function dayAt_(s, minutes) { const a = ymd_(s); return new Date(a[0], a[1], a[2], 0, minutes); }
 function addDays_(s, n) { const a = ymd_(s); return fmt_(new Date(a[0], a[1], a[2] + n, 12), 'yyyy-MM-dd'); }
 function today_() { return fmt_(new Date(), 'yyyy-MM-dd'); }
-function slotCount_(c) { return Math.max(0, Math.floor((c.dayEnd - c.dayStart) / c.slotMin)); }
-function slotTime_(s, i, c) { return dayAt_(s, c.dayStart + i * c.slotMin); }
+// Number of slots on a date, and the start time of slot i on that date (each day has its own hours)
+function slotCount_(c, s) { const h = hoursOn_(s, c); return Math.max(0, Math.floor((h.end - h.start) / c.slotMin)); }
+function slotTime_(s, i, c) { return dayAt_(s, hoursOn_(s, c).start + i * c.slotMin); }
 
 function isOpenDay_(s, c) {
   return !c.openDays.length || c.openDays.indexOf(fmt_(dayAt_(s, 720), 'EEE').toLowerCase().slice(0, 3)) >= 0;
@@ -493,7 +545,6 @@ function calendar_(c, comps, active, email) {
   const t = today_();
   const start = calendarStart_(c);
   const cols = calendarCols_(c);
-  const n = slotCount_(c);
   const now = Date.now();
   const usable = comps.filter(cp => cp.available);
   const names = NAMES[LANG_];
@@ -501,6 +552,7 @@ function calendar_(c, comps, active, email) {
   for (let w = 0; w < c.weeks; w++) {
     weeks.push(cols.map(k => {
       const d = addDays_(start, w * 7 + k);
+      const n = slotCount_(c, d);
       const p = parts_(dayAt_(d, 720));
       const cell = { value: d, day: p.day, mon: names.mShort[p.mon] };
       const dayStart = slotTime_(d, 0, c).getTime();
@@ -707,11 +759,12 @@ function onEdit(e) {
 
 // Where a booking sits in the day grid (date, first slot, number of slots), for the admin edit dialog
 function editInfo_(b, c) {
-  const n = slotCount_(c);
+  const date = fmt_(b.start, 'yyyy-MM-dd');
+  const n = slotCount_(c, date);
   const p = parts_(b.start);
-  const si = Math.min(n - 1, Math.max(0, Math.round((p.h * 60 + Number(p.m) - c.dayStart) / c.slotMin)));
+  const si = Math.min(n - 1, Math.max(0, Math.round((p.h * 60 + Number(p.m) - hoursOn_(date, c).start) / c.slotMin)));
   const len = Math.min(n - si, Math.max(1, Math.round((b.end - b.start) / (c.slotMin * 60000))));
-  return { id: b.id, computer: b.computer, date: fmt_(b.start, 'yyyy-MM-dd'), startIdx: si, len: len, email: b.email, note: b.note };
+  return { id: b.id, computer: b.computer, date: date, startIdx: si, len: len, email: b.email, note: b.note };
 }
 
 function setCells_(row, values) {
@@ -773,17 +826,17 @@ function getSession(token, lang) {
   const u = requireUser_(token);
   saveLang_(u.rec, LANG_); // emails follow the language the person last used on the site
   const c = cfg_();
-  const n = NAMES[LANG_];
-  const days = c.openDays.length
-    ? c.openDays.map(d => n.dLong[EN_DAYS.map(x => x.toLowerCase()).indexOf(d)] || d).join(', ')
-    : T_('everyDay');
   const clock = m => time_(new Date(2000, 0, 3, 0, m));
-  // Admins get what the add / edit dialog needs: the slot boundaries and every computer
+  // Admins get what the add / edit dialog needs: the slot boundaries of each weekday (0 = Monday) and every computer
   let adminData = null;
   if (u.isAdmin) {
-    const labels = [];
-    for (let i = 0; i <= slotCount_(c); i++) labels.push(clock(c.dayStart + i * c.slotMin));
-    adminData = { slots: labels, today: today_(), computers: computers_().map(cp => ({ name: cp.name, ram: cp.ram, available: cp.available })) };
+    const slotsByDow = [0, 1, 2, 3, 4, 5, 6].map(k => {
+      const h = hoursOfDow_(k, c), labels = [];
+      const n = Math.max(0, Math.floor((h.end - h.start) / c.slotMin));
+      for (let i = 0; i <= n; i++) labels.push(clock(h.start + i * c.slotMin));
+      return labels;
+    });
+    adminData = { slotsByDow: slotsByDow, today: today_(), computers: computers_().map(cp => ({ name: cp.name, ram: cp.ram, available: cp.available })) };
   }
   return {
     email: u.email,
@@ -793,7 +846,7 @@ function getSession(token, lang) {
     address: c.address,
     contact: c.contact,
     dates: bookableDates_(c),
-    rules: T_('rules', days, clock(c.dayStart), clock(c.dayEnd), c.slotMin, c.maxSlots, c.maxUpcoming, hoursList_(c.reminders), c.deadlineH)
+    rules: T_('rules', weekLabel_(c), c.slotMin, c.maxSlots, c.maxUpcoming, hoursList_(c.reminders), c.deadlineH)
   };
 }
 
@@ -803,7 +856,7 @@ function getDay(token, dateStr, lang) {
   const c = cfg_();
   checkDate_(dateStr, c);
   const comps = computers_();
-  const n = slotCount_(c);
+  const n = slotCount_(c, dateStr);
   const now = Date.now();
   const dayStart = slotTime_(dateStr, 0, c).getTime();
   const dayEnd = slotTime_(dateStr, n, c).getTime();
@@ -857,7 +910,7 @@ function createBooking(token, computer, dateStr, slotIndex, numSlots, lang) {
   checkDate_(dateStr, c);
   computer = String(computer);
   if (!computers_().some(x => x.name === computer && x.available)) throw new Error(T_('notAvailable'));
-  const n = slotCount_(c);
+  const n = slotCount_(c, dateStr);
   slotIndex = Number(slotIndex);
   numSlots = Number(numSlots);
   if (!(Number.isInteger(slotIndex) && slotIndex >= 0 && slotIndex < n)) throw new Error(T_('invalidSlot'));
@@ -957,7 +1010,7 @@ function adminSaveBooking(token, p, lang) {
   const dateStr = String(p.date || '');
   ymd_(dateStr);
   if (dateStr < today_()) throw new Error(T_('passed'));
-  const n = slotCount_(c);
+  const n = slotCount_(c, dateStr);
   const si = Number(p.startIdx), len = Number(p.len);
   if (!(Number.isInteger(si) && si >= 0 && si < n)) throw new Error(T_('invalidSlot'));
   if (!(Number.isInteger(len) && len >= 1 && si + len <= n)) throw new Error(T_('invalidLength'));
@@ -1100,8 +1153,8 @@ function getSettings(token, lang) {
   return {
     labName: c.labName, address: c.address, contact: c.contact, replyTo: c.replyTo,
     domains: c.domains.join(', '),
-    dayStart: hhmm_(c.dayStart), dayEnd: hhmm_(c.dayEnd),
-    openDays: c.openDays,
+    // One entry per weekday (0 = Monday): open or closed, and its hours (closed days show the usual hours, ready to reopen)
+    week: c.week.map(h => ({ open: !!h, start: hhmm_(h ? h.start : c.dayStart), end: hhmm_(h ? h.end : c.dayEnd) })),
     weeks: c.weeks, maxSlots: c.maxSlots, maxUpcoming: c.maxUpcoming, slotMin: c.slotMin,
     reminder1: c.reminders[0], reminder2: c.reminders.length > 1 ? c.reminders[1] : '', deadline: c.deadlineH,
     admins: c.admins.map(e => ({ email: e, locked: e === owner || e === u.email })),
@@ -1125,13 +1178,22 @@ function saveRules(token, r, lang) {
     return n;
   };
 
-  // Opening hours and days
+  // Opening hours, day by day: r.week = 7 × { open, start: 'HH:MM', end: 'HH:MM' } (0 = Monday)
   const tm = s => { const m = /^(\d{1,2})[:h](\d{2})$/.exec(String(s || '').trim()); if (!m || +m[1] > 23 || +m[2] > 59) throw new Error(T_('setBadTime')); return +m[1] * 60 + +m[2]; };
-  const start = tm(r.dayStart), end = tm(r.dayEnd);
-  const slots = Math.floor((end - start) / c.slotMin);
-  if (slots < 1) throw new Error(T_('setTimeOrder'));
-  const days = EN_DAYS.filter(d => (r.openDays || []).map(x => String(x).toLowerCase()).indexOf(d.toLowerCase()) >= 0);
-  if (!days.length) throw new Error(T_('setNoDays'));
+  const wk = Array.isArray(r.week) ? r.week : [];
+  const week = EN_DAYS.map((d, k) => {
+    const x = wk[k] || {};
+    if (!x.open) return null;
+    const start = tm(x.start), end = tm(x.end);
+    if (Math.floor((end - start) / c.slotMin) < 1) throw new Error(T_('setTimeOrderDay', NAMES[LANG_].dLong[k]));
+    return { start: start, end: end };
+  });
+  const openIdx = [0, 1, 2, 3, 4, 5, 6].filter(k => week[k]);
+  if (!openIdx.length) throw new Error(T_('setNoDays'));
+  const slots = Math.max.apply(null, openIdx.map(k => Math.floor((week[k].end - week[k].start) / c.slotMin)));
+  // DAY_START / DAY_END keep the earliest opening and latest closing: used for admin bookings on closed days
+  const earliest = Math.min.apply(null, openIdx.map(k => week[k].start));
+  const latest = Math.max.apply(null, openIdx.map(k => week[k].end));
 
   // Limits
   const weeks = int(r.weeks, 'lbl_weeks', 1, 12);
@@ -1164,9 +1226,10 @@ function saveRules(token, r, lang) {
     LAB_CONTACT: String(r.contact || '').trim(),
     REPLY_TO: replyTo,
     ALLOWED_EMAIL_DOMAINS: domains.join(', '),
-    DAY_START: hhmm_(start),
-    DAY_END: hhmm_(end),
-    OPEN_DAYS: days.join(','),
+    WEEK_HOURS: openIdx.map(k => EN_DAYS[k] + ' ' + hhmm_(week[k].start) + '-' + hhmm_(week[k].end)).join(', '),
+    DAY_START: hhmm_(earliest),
+    DAY_END: hhmm_(latest),
+    OPEN_DAYS: openIdx.map(k => EN_DAYS[k]).join(','),
     BOOKING_WEEKS: weeks,
     MAX_SLOTS_PER_BOOKING: maxSlots,
     MAX_UPCOMING_BOOKINGS: maxUpcoming,

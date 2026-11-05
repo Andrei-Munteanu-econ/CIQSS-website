@@ -55,8 +55,13 @@
   .panel input[type=text], .panel input[type=email], .panel input[type=number] { width: 100%; max-width: 420px; }
   .panel input.short { max-width: 110px; }
   .panel .unit { margin-left: 6px; color: var(--muted); font-size: 14px; }
-  .panel .days { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-  .panel .days label { font-size: 14px; display: flex; gap: 5px; align-items: center; }
+  .panel table.hours { width: auto; border-collapse: collapse; margin-top: 4px; }
+  .panel table.hours th, .panel table.hours td { border: 0; padding: 4px 10px 4px 0; text-align: left; font-size: 14px; background: none; }
+  .panel table.hours th { font-weight: normal; color: var(--muted); font-size: 12px; }
+  .panel table.hours td.dn { font-weight: 600; min-width: 80px; }
+  .panel table.hours input[type=time] { padding: 5px 6px; }
+  .panel table.hours input[type=checkbox] { width: 18px; height: 18px; }
+  .panel table.hours tr.closed td.dn { color: #aaa; }
   .comp { border: 1px solid #ececec; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
   .comp .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .comp .sw { display: flex; gap: 6px; align-items: center; font-size: 14px; cursor: pointer; }
@@ -213,7 +218,8 @@
     sDeadline: ['Annuler si non confirmée', 'Cancel if not confirmed'],
     sHoursBefore: ['heures avant le début', 'hours before the start'],
     sRules: ['Horaire et limites', 'Hours and limits'],
-    sOpenDays: ['Jours d\'ouverture', 'Opening days'],
+    sOpenDays: ['Heures d\'ouverture, jour par jour', 'Opening hours, day by day'],
+    sOpenCol: ['Ouvert', 'Open'],
     sOpens: ['Ouverture', 'Opens'],
     sCloses: ['Fermeture', 'Closes'],
     sTimeHelp: ['Format 24 h, p. ex. 09:00 et 17:00. Les plages durent {0} minutes.', '24-hour format, e.g. 09:00 and 17:00. Slots are {0} minutes long.'],
@@ -377,8 +383,8 @@
   function settingsErr(msg) { note('setmsg', msg, 'err'); window.scrollTo(0, 0); }
 
   function drawSettings(G) {
-    var DAYS = [['Mon', 'lun.', 'Mon'], ['Tue', 'mar.', 'Tue'], ['Wed', 'mer.', 'Wed'], ['Thu', 'jeu.', 'Thu'], ['Fri', 'ven.', 'Fri'], ['Sat', 'sam.', 'Sat'], ['Sun', 'dim.', 'Sun']];
-    var open = G.openDays.length ? G.openDays : DAYS.map(function (d) { return d[0].toLowerCase(); });
+    var DAYS = [['Mon', 'lun.', 'Mon', 'Monday', 'Lundi'], ['Tue', 'mar.', 'Tue', 'Tuesday', 'Mardi'], ['Wed', 'mer.', 'Wed', 'Wednesday', 'Mercredi'],
+      ['Thu', 'jeu.', 'Thu', 'Thursday', 'Jeudi'], ['Fri', 'ven.', 'Fri', 'Friday', 'Vendredi'], ['Sat', 'sam.', 'Sat', 'Saturday', 'Samedi'], ['Sun', 'dim.', 'Sun', 'Sunday', 'Dimanche']];
     var field = function (id, label, value, opts) {
       opts = opts || {};
       return '<label class="f" for="' + id + '">' + label + (opts.help ? '<span class="sub">' + opts.help + '</span>' : '') + '</label>' +
@@ -424,13 +430,18 @@
       field('rdl', t('sDeadline'), G.deadline, { type: 'number', cls: 'short', min: 0, max: 168, unit: t('sHoursBefore') }) +
       saveBtn + '</section>';
 
-    // 3. Hours and limits
+    // 3. Hours and limits: one row per day (open or closed, opening and closing time)
+    var step = G.slotMin * 60;
     h += '<section class="panel"><h3>' + t('sRules') + '</h3>' +
-      '<label class="f">' + t('sOpenDays') + '</label><div class="days">' + DAYS.map(function (d) {
-        return '<label><input type="checkbox" data-day="' + d[0] + '"' + (open.indexOf(d[0].toLowerCase()) >= 0 ? ' checked' : '') + '> ' + (LANG === 'en' ? d[2] : d[1]) + '</label>';
-      }).join('') + '</div>' +
-      '<div class="two" style="display:flex;gap:16px;flex-wrap:wrap"><div>' + field('dst', t('sOpens'), G.dayStart, { cls: 'short' }) + '</div><div>' +
-      field('den', t('sCloses'), G.dayEnd, { cls: 'short' }) + '</div></div><p class="help" style="margin-top:4px">' + esc(t('sTimeHelp', G.slotMin)) + '</p>' +
+      '<label class="f">' + t('sOpenDays') + '<span class="sub">' + esc(t('sTimeHelp', G.slotMin)) + '</span></label>' +
+      '<table class="hours"><thead><tr><th></th><th>' + t('sOpenCol') + '</th><th>' + t('sOpens') + '</th><th>' + t('sCloses') + '</th></tr></thead><tbody>' +
+      DAYS.map(function (d, k) {
+        var w = G.week[k];
+        return '<tr' + (w.open ? '' : ' class="closed"') + ' data-row="' + k + '"><td class="dn">' + (LANG === 'en' ? d[3] : d[4]) + '</td>' +
+          '<td><input type="checkbox" data-wopen="' + k + '"' + (w.open ? ' checked' : '') + ' aria-label="' + t('sOpenCol') + '"></td>' +
+          '<td><input type="time" step="' + step + '" data-wstart="' + k + '" value="' + esc(w.start) + '"' + (w.open ? '' : ' disabled') + '></td>' +
+          '<td><input type="time" step="' + step + '" data-wend="' + k + '" value="' + esc(w.end) + '"' + (w.open ? '' : ' disabled') + '></td></tr>';
+      }).join('') + '</tbody></table>' +
       field('wk', t('sWeeks'), G.weeks, { type: 'number', cls: 'short', min: 1, max: 12, unit: t('sWeeksUnit') }) +
       field('msl', t('sMaxSlots'), G.maxSlots, { type: 'number', cls: 'short', min: 1, unit: t('sSlotsUnit') + ' (' + G.slotMin + ' min)' }) +
       field('mup', t('sMaxUpcoming'), G.maxUpcoming, { type: 'number', cls: 'short', min: 1, max: 100, help: t('sMaxUpcomingHelp') }) +
@@ -469,7 +480,17 @@
       el.disabled = true;
       call('saveComputer', TOKEN, G.computers[k].name, compPayload(k)).then(settingsDone).catch(function (m) { el.disabled = false; settingsErr(m); });
     };
-    $('sets').onchange = function (e) { var a = e.target.getAttribute('data-avail'); if (a != null) saveComp(+a, e.target); };
+    $('sets').onchange = function (e) {
+      var a = e.target.getAttribute('data-avail');
+      if (a != null) saveComp(+a, e.target);
+      // Opening-hours table: a closed day greys out its times
+      var o = e.target.getAttribute('data-wopen');
+      if (o != null) {
+        document.querySelector('[data-wstart="' + o + '"]').disabled = !e.target.checked;
+        document.querySelector('[data-wend="' + o + '"]').disabled = !e.target.checked;
+        document.querySelector('[data-row="' + o + '"]').className = e.target.checked ? '' : 'closed';
+      }
+    };
     $('sets').onclick = function (e) {
       var sc = e.target.closest('[data-savecomp]'), sr = e.target.closest('[data-saverules]'), rm = e.target.closest('[data-rmadmin]');
       var mv = e.target.closest('[data-move]'), dc = e.target.closest('[data-delcomp]');
@@ -494,8 +515,11 @@
         call('removeAdmin', TOKEN, who).then(settingsDone).catch(settingsErr);
       }
       if (sr) {
-        var days = Array.prototype.filter.call(document.querySelectorAll('[data-day]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-day'); });
-        var r = { reminder1: $('r1').value, reminder2: $('r2').value, deadline: $('rdl').value, openDays: days, dayStart: $('dst').value, dayEnd: $('den').value,
+        var week = [0, 1, 2, 3, 4, 5, 6].map(function (k) {
+          return { open: document.querySelector('[data-wopen="' + k + '"]').checked,
+            start: document.querySelector('[data-wstart="' + k + '"]').value, end: document.querySelector('[data-wend="' + k + '"]').value };
+        });
+        var r = { reminder1: $('r1').value, reminder2: $('r2').value, deadline: $('rdl').value, week: week,
           weeks: $('wk').value, maxSlots: $('msl').value, maxUpcoming: $('mup').value, labName: $('lname').value, address: $('laddr').value,
           contact: $('lcont').value, replyTo: $('lrep').value, domains: $('ldom').value };
         sr.disabled = true;
@@ -705,19 +729,31 @@
 
   function adminDialog(pre) {
     var A = S.adminData, isEdit = !!pre.id;
-    var n = A.slots.length - 1;
     var opt = function (v, label, sel) { return '<option value="' + esc(v) + '"' + (sel ? ' selected' : '') + '>' + esc(label) + '</option>'; };
     var comps = A.computers.map(function (c) {
       return opt(c.name, c.name + (c.ram ? ' – ' + t('gb', c.ram) : '') + (c.available ? '' : ' (' + t('offShort') + ')'), c.name === pre.computer);
     }).join('') + (isEdit ? '' : opt('*', t('everyComputer'), false));
-    var starts = '', ends = '';
-    for (var i = 0; i < n; i++) starts += opt(i, A.slots[i], i === pre.startIdx);
-    for (var k = 1; k <= n; k++) ends += opt(k, A.slots[k], k === pre.startIdx + pre.len);
+    // Slot boundaries of a date: each weekday has its own hours (0 = Monday)
+    var slotsOf = function (dateStr) {
+      var p = String(dateStr || '').split('-');
+      var d = p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : new Date();
+      return A.slotsByDow[(d.getDay() + 6) % 7] || A.slotsByDow[0];
+    };
+    // Fills the From / Until lists for the chosen date, keeping the chosen times where they still exist
+    var fillTimes = function (dateStr, from, to) {
+      var sl = slotsOf(dateStr), n = sl.length - 1, starts = '', ends = '';
+      from = Math.min(Math.max(0, from), n - 1);
+      to = Math.min(Math.max(from + 1, to), n);
+      for (var i = 0; i < n; i++) starts += opt(i, sl[i], i === from);
+      for (var k = 1; k <= n; k++) ends += opt(k, sl[k], k === to);
+      $('afrom').innerHTML = starts;
+      $('ato').innerHTML = ends;
+    };
     modal('<h3>' + t(isEdit ? 'editTitle' : 'addTitle') + '</h3><div class="form">' +
       '<label>' + t('fDate') + '</label><input type="date" id="adate" min="' + A.today + '" value="' + esc(pre.date) + '">' +
       '<label>' + t('fComputer') + '</label><select id="acomp">' + comps + '</select>' +
-      '<div class="two"><div><label>' + t('fFrom') + '</label><select id="afrom">' + starts + '</select></div>' +
-      '<div><label>' + t('fTo') + '</label><select id="ato">' + ends + '</select></div></div>' +
+      '<div class="two"><div><label>' + t('fFrom') + '</label><select id="afrom"></select></div>' +
+      '<div><label>' + t('fTo') + '</label><select id="ato"></select></div></div>' +
       '<label>' + t('fFor') + '</label><select id="amode">' + opt('self', t('forSelf') + ' (' + S.email + ')', pre.mode === 'self') +
       opt('other', t('forOther'), pre.mode === 'other') + opt('block', t('forBlock'), pre.mode === 'block') + '</select>' +
       '<div id="aemailbox"><label>' + t('fEmail') + '</label><input type="email" id="aemail" value="' + esc(pre.mode === 'other' ? pre.email : '') + '"></div>' +
@@ -738,6 +774,15 @@
     }
     $('amode').onchange = sync;
     sync();
+    fillTimes(pre.date, pre.startIdx, pre.startIdx + pre.len);
+    // Another date may have other hours: rebuild the time lists, keeping the same times when possible
+    $('adate').onchange = function () {
+      var old = slotsOf(pre.date), from = old[+$('afrom').value], to = old[+$('ato').value];
+      var sl = slotsOf($('adate').value);
+      var fi = sl.indexOf(from), ti = sl.indexOf(to);
+      fillTimes($('adate').value, fi < 0 ? 0 : fi, ti < 0 ? (fi < 0 ? 1 : fi + 1) : ti);
+      pre.date = $('adate').value;
+    };
 
     $('asave').onclick = function () {
       var from = +$('afrom').value, to = +$('ato').value;
