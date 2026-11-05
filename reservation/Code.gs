@@ -45,7 +45,7 @@ const DEFAULT_CONFIG = [
   ['BOOKING_WEEKS', '4', 'How many weeks the calendar shows, one below the other (the current week is the first). Every open day in them can be booked'],
   ['MAX_SLOTS_PER_BOOKING', '8', 'Longest single booking, in slots (8 one-hour slots = a full day)'],
   ['MAX_UPCOMING_BOOKINGS', '5', 'Most upcoming bookings one person can hold at once (admins are exempt)'],
-  ['CONFIRM_REMINDER_HOURS', '48', 'Hours before the start when the confirm-your-booking email goes out. Bookings made after that time are confirmed right away. Several values are allowed (e.g. 48, 24): later ones go out only while the booking is unconfirmed'],
+  ['CONFIRM_REMINDER_HOURS', '48, 24', 'Hours before the start when the confirm-your-booking email goes out (comma-separated; each one is sent only while the booking is unconfirmed, and only if the booking was made before that time)'],
   ['CONFIRM_DEADLINE_HOURS', '8', 'Bookings not confirmed by this many hours before the start are cancelled and the slot released']
 ];
 
@@ -416,7 +416,7 @@ function cfg_() {
     deadlineH: nonNeg('CONFIRM_DEADLINE_HOURS', 8)
   };
   // Reminder emails: a list of hours before the start, e.g. "48, 24" (largest first). Only hours before the deadline count.
-  c.reminders = String(raw.CONFIRM_REMINDER_HOURS == null || raw.CONFIRM_REMINDER_HOURS === '' ? '48' : raw.CONFIRM_REMINDER_HOURS)
+  c.reminders = String(raw.CONFIRM_REMINDER_HOURS == null || raw.CONFIRM_REMINDER_HOURS === '' ? '48, 24' : raw.CONFIRM_REMINDER_HOURS)
     .split(/[,;\s]+/).map(Number).filter(h => isFinite(h) && h > c.deadlineH)
     .sort((a, b) => b - a);
   if (!c.reminders.length) c.reminders = [c.deadlineH + 1];
