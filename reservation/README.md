@@ -24,7 +24,7 @@
   - add, rename, reorder (↑ ↓) or delete computers. A rename carries all the computer's bookings over to the new name. Deleting is refused while the computer has upcoming bookings;
   - edit RAM, notes and **software** (e.g. "SPSS, Stata, R"). Software is shown under the computer's name on the schedule, and researchers can filter with "Avec SPSS", etc.;
   - set when the confirmation email and an optional second reminder go out, and when unconfirmed bookings are cancelled;
-  - set opening days and hours, weeks shown, longest booking and upcoming bookings per person;
+  - set the opening hours **day by day** (open or closed, opening and closing time for each day, e.g. Monday until 20:00), weeks shown, longest booking and upcoming bookings per person;
   - edit lab name, address, contact, reply-to and allowed sign-up domains;
   - add or remove admins.
 
@@ -95,8 +95,9 @@ In the **Config** tab, change any value. Changes apply immediately.
 | ADMIN_EMAILS | reservation.ciqss.uqam@gmail.com, munteanu.andrei@uqam.ca | Comma-separated admin list |
 | ALLOWED_EMAIL_DOMAINS | (blank = anyone) | e.g. `uqam.ca, umontreal.ca` |
 | SLOT_MINUTES | 60 | Slot length |
-| DAY_START / DAY_END | 09:00 / 17:00 | Opening hours |
-| OPEN_DAYS | Mon,Tue,Wed,Thu,Fri | Days the lab is open |
+| WEEK_HOURS | (blank) | Hours per day, e.g. `Mon 09:00-20:00, Tue 09:00-17:00, …`; days not listed are closed. Set it on the settings page. When set, it overrides the two rows below |
+| DAY_START / DAY_END | 09:00 / 17:00 | Opening hours when WEEK_HOURS is blank (the settings page keeps them at the earliest opening and latest closing; admin bookings on closed days use them) |
+| OPEN_DAYS | Mon,Tue,Wed,Thu,Fri | Days the lab is open when WEEK_HOURS is blank |
 | BOOKING_WEEKS | 4 | Weeks shown in the calendar (current week first); every open day in them can be booked. Replaces BOOKING_HORIZON_DAYS, which *Set up / repair* removes |
 | MAX_SLOTS_PER_BOOKING | 8 | Longest single booking (8 = a full day) |
 | MAX_UPCOMING_BOOKINGS | 5 | Per person; admins are exempt |
