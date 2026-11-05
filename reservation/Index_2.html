@@ -38,6 +38,38 @@
   .taken.admin { cursor: pointer; }
   .past { background: repeating-linear-gradient(45deg, #f1f1f1, #f1f1f1 4px, #fafafa 4px, #fafafa 8px); }
   .off { background: #d9d9d9; }
+  .blocked { background: repeating-linear-gradient(45deg, #f6dcd9, #f6dcd9 5px, #fbeceb 5px, #fbeceb 10px); color: var(--red); }
+  .c.admin { cursor: pointer; }
+  .form label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 3px; }
+  .form input, .form select { width: 100%; }
+  .form .two { display: flex; gap: 8px; }
+  .form .two > div { flex: 1; }
+  .form .chk { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: 14px; }
+  .form .chk input { width: auto; }
+  /* Settings page */
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .panel h3 { font-size: 16px; }
+  .panel .help { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .panel label.f { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 3px; }
+  .panel .sub { display: block; font-weight: normal; color: var(--muted); font-size: 12px; }
+  .panel input[type=text], .panel input[type=email], .panel input[type=number] { width: 100%; max-width: 420px; }
+  .panel input.short { max-width: 110px; }
+  .panel .unit { margin-left: 6px; color: var(--muted); font-size: 14px; }
+  .panel .days { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .panel .days label { font-size: 14px; display: flex; gap: 5px; align-items: center; }
+  .comp { border: 1px solid #ececec; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+  .comp .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .comp .sw { display: flex; gap: 6px; align-items: center; font-size: 14px; cursor: pointer; }
+  .comp .sw input { width: 18px; height: 18px; }
+  .comp.offc { background: #f4f4f4; }
+  .comp details { margin-top: 6px; font-size: 14px; }
+  .comp summary { cursor: pointer; color: var(--blue); font-size: 13px; }
+  .arow { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .logtbl td, .logtbl th { text-align: left; padding: 5px 8px; font-size: 12px; white-space: normal; }
+  th .swh { display: block; white-space: normal; font-weight: normal; font-size: 11px; color: var(--muted); max-width: 130px; margin: 2px auto 0; }
+  .comp .tools { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .btn.sm { padding: 3px 9px; font-size: 13px; }
+  .comp .soft { display: block; font-weight: normal; font-size: 13px; color: var(--muted); }
   th.offh { background: #e0e0e0; color: #999; }
   /* 4-week calendar: one row per week */
   .cal { display: grid; gap: 6px; margin-bottom: 16px; }
@@ -101,6 +133,8 @@
     noDays: ['Aucune journée ne peut être réservée pour le moment.', 'There are no bookable days right now.'],
     allComputers: ['Tous les ordinateurs', 'All computers'],
     ramOnly: ['{0} Go de RAM seulement', '{0} GB RAM only'],
+    withSoftware: ['Avec {0}', 'With {0}'],
+    softwareLine: ['Logiciels : {0}', 'Software: {0}'],
     legendFree: ['Libre (cliquez pour réserver)', 'Free (tap to book)'],
     legendMine: ['Vos réservations', 'Yours'],
     legendTaken: ['Occupé', 'Taken'],
@@ -126,8 +160,88 @@
     cancel: ['Annuler', 'Cancel'],
     askAdminCancel: ['Annuler cette réservation? {0} en sera avisé par courriel.', 'Cancel this booking? {0} will be notified by email.'],
     askCancel: ['Annuler cette réservation?', 'Cancel this booking?'],
-    adminNote: ['Pour ajouter ou retirer des ordinateurs, ou modifier les règles, modifiez les onglets Computers et Config de la feuille de calcul. Les changements s\'appliquent immédiatement.',
-      'To add or remove computers, or change the rules, edit the Computers and Config tabs of the spreadsheet. Changes apply right away.'],
+    adminNote: ['Pour ajouter une réservation, cliquez sur une plage dans l\'onglet Horaire ou sur le bouton ci-dessus. Pour rendre un ordinateur indisponible, gérer les administrateurs ou changer les règles, utilisez l\'onglet Réglages.',
+      'To add a booking, click a slot in the Schedule tab or use the button above. To make a computer unavailable, manage admins or change the rules, use the Settings tab.'],
+    edit: ['Modifier', 'Edit'],
+    addBooking: ['+ Ajouter une réservation', '+ Add a booking'],
+    addTitle: ['Ajouter une réservation', 'Add a booking'],
+    editTitle: ['Modifier la réservation', 'Edit booking'],
+    fDate: ['Date', 'Date'],
+    fComputer: ['Ordinateur', 'Computer'],
+    fFrom: ['De', 'From'],
+    fTo: ['Jusqu\'à', 'Until'],
+    fFor: ['Pour', 'For'],
+    forSelf: ['Moi-même', 'Myself'],
+    forOther: ['Une autre personne', 'Someone else'],
+    forBlock: ['Blocage (fermeture, entretien…)', 'Block (closure, maintenance…)'],
+    fEmail: ['Courriel de la personne', 'Their email'],
+    fNote: ['Note (facultatif, visible des admins seulement)', 'Note (optional, admins only)'],
+    fLabel: ['Libellé affiché à tous (p. ex. Entretien)', 'Label everyone sees (e.g. Maintenance)'],
+    fNotify: ['Aviser la personne par courriel', 'Email the person about it'],
+    save: ['Enregistrer', 'Save'],
+    everyComputer: ['Tous les ordinateurs', 'All computers'],
+    offShort: ['indisponible', 'unavailable'],
+    endBeforeStart: ['L\'heure de fin doit suivre l\'heure de début.', 'The end time must be after the start time.'],
+    adminBookHint: ['Les réservations faites par un admin sont confirmées d\'office (aucun courriel de confirmation).', 'Bookings made by an admin are confirmed right away (no confirmation emails).'],
+    legendBlocked: ['Bloqué', 'Blocked'],
+    settings: ['Réglages (admin)', 'Settings (admin)'],
+    sComputers: ['Ordinateurs', 'Computers'],
+    sComputersHelp: ['Décochez « Réservable » pour retirer un ordinateur des réservations (il reste affiché, en gris). Le changement est enregistré tout de suite. Les réservations déjà faites ne sont pas annulées.',
+      'Untick "Bookable" to take a computer out of booking (it stays on the page, greyed out). The change is saved right away. Existing bookings are not cancelled.'],
+    sBookable: ['Réservable', 'Bookable'],
+    sNotesEdit: ['Modifier le nom, la RAM, les logiciels et les notes', 'Edit name, RAM, software and notes'],
+    sName: ['Nom', 'Name'],
+    sNameHelp: ['Les réservations de cet ordinateur suivent automatiquement le nouveau nom.', 'Its bookings follow the new name automatically.'],
+    sSoftware: ['Logiciels', 'Software'],
+    sSoftwareHelp: ['Séparés par des virgules, p. ex. SPSS, Stata, R. Affichés sous le nom; les chercheurs peuvent filtrer par logiciel.',
+      'Comma-separated, e.g. SPSS, Stata, R. Shown under the name; researchers can filter by software.'],
+    sUp: ['Monter', 'Move up'], sDown: ['Descendre', 'Move down'],
+    sDelete: ['Supprimer cet ordinateur', 'Delete this computer'],
+    sAskDelete: ['Supprimer {0} de la liste? Ses réservations passées restent dans la feuille de calcul.', 'Delete {0} from the list? Its past bookings stay in the spreadsheet.'],
+    sAddComp: ['Ajouter un ordinateur', 'Add a computer'],
+    sAddCompBtn: ['Ajouter l\'ordinateur', 'Add computer'],
+    sRam: ['RAM (Go)', 'RAM (GB)'],
+    sNoteFr: ['Note (français)', 'Note (French)'],
+    sNoteEn: ['Note (anglais, facultatif)', 'Note (English, optional)'],
+    sNoteHelp: ['Un ordinateur avec une note porte un astérisque; la note s\'affiche sous l\'horaire.', 'A computer with a note gets an asterisk; the note is shown under the schedule.'],
+    sEmails: ['Courriels de confirmation', 'Confirmation emails'],
+    sEmailsHelp: ['Avant chaque réservation, la personne reçoit un courriel lui demandant de confirmer. Sans confirmation à temps, la réservation est annulée et la plage libérée.',
+      'Before each booking, the person gets an email asking them to confirm. If they don\'t confirm in time, the booking is cancelled and the slot freed.'],
+    sReminder1: ['Envoyer le courriel de confirmation', 'Send the confirmation email'],
+    sReminder2: ['Deuxième rappel (facultatif)', 'Second reminder (optional)'],
+    sReminder2Help: ['Envoyé seulement si la réservation n\'est toujours pas confirmée. Laissez vide pour aucun deuxième rappel.', 'Sent only if the booking is still unconfirmed. Leave blank for no second reminder.'],
+    sDeadline: ['Annuler si non confirmée', 'Cancel if not confirmed'],
+    sHoursBefore: ['heures avant le début', 'hours before the start'],
+    sRules: ['Horaire et limites', 'Hours and limits'],
+    sOpenDays: ['Jours d\'ouverture', 'Opening days'],
+    sOpens: ['Ouverture', 'Opens'],
+    sCloses: ['Fermeture', 'Closes'],
+    sTimeHelp: ['Format 24 h, p. ex. 09:00 et 17:00. Les plages durent {0} minutes.', '24-hour format, e.g. 09:00 and 17:00. Slots are {0} minutes long.'],
+    sWeeks: ['Semaines affichées dans le calendrier', 'Weeks shown in the calendar'],
+    sWeeksUnit: ['semaine(s)', 'week(s)'],
+    sMaxSlots: ['Durée maximale d\'une réservation', 'Longest booking'],
+    sSlotsUnit: ['plage(s)', 'slot(s)'],
+    sMaxUpcoming: ['Réservations à venir permises par personne', 'Upcoming bookings allowed per person'],
+    sMaxUpcomingHelp: ['Les administrateurs ne sont pas limités.', 'Admins are not limited.'],
+    sLab: ['Laboratoire et inscription', 'Lab and sign-up'],
+    sLabName: ['Nom du laboratoire', 'Lab name'],
+    sAddress: ['Adresse', 'Address'],
+    sContact: ['Contact (affiché sur la page et dans les courriels)', 'Contact (shown on the page and in emails)'],
+    sReplyTo: ['Adresse de réponse aux courriels (facultatif)', 'Reply-to address for emails (optional)'],
+    sDomains: ['Domaines permis pour l\'inscription (facultatif)', 'Email domains allowed to sign up (optional)'],
+    sDomainsHelp: ['P. ex. uqam.ca, inrs.ca. Laissez vide pour accepter toutes les adresses.', 'E.g. uqam.ca, inrs.ca. Leave blank to accept any address.'],
+    sSave: ['Enregistrer les réglages', 'Save settings'],
+    sAdmins: ['Administrateurs', 'Administrators'],
+    sAdminsHelp: ['Les administrateurs voient qui a réservé, peuvent ajouter, modifier ou annuler toute réservation et accèdent à cette page.',
+      'Admins see who booked, can add, edit or cancel any booking, and can use this page.'],
+    sRemove: ['Retirer', 'Remove'],
+    sAddAdmin: ['Ajouter', 'Add'],
+    sAskRemove: ['Retirer {0} des administrateurs?', 'Remove {0} from the admins?'],
+    sLocked: ['(ne peut pas être retiré)', '(cannot be removed)'],
+    sLog: ['Historique des changements', 'Change history'],
+    sLogHelp: ['Les 25 derniers changements faits sur cette page (onglet Log de la feuille de calcul).', 'The last 25 changes made on this page (Log tab of the spreadsheet).'],
+    sLogEmpty: ['Aucun changement pour l\'instant.', 'No changes yet.'],
+    sWhen: ['Quand', 'When'], sWho: ['Qui', 'Who'], sWhat: ['Réglage', 'Setting'], sBefore: ['Avant', 'Before'], sAfter: ['Après', 'After'],
     noUpcoming: ['Aucune réservation à venir.', 'No upcoming bookings.'],
     otherLang: ['English', 'Français'],
     'Booked': ['Réservée', 'Booked'],
@@ -228,7 +342,8 @@
 
   function renderShell() {
     var tabs = [['schedule', t('schedule')], ['mine', t('mine')]];
-    if (S.isAdmin) tabs.push(['all', t('all')]);
+    if (S.isAdmin) { tabs.push(['all', t('all')]); tabs.push(['settings', t('settings')]); }
+    if (!S.isAdmin && (state.tab === 'all' || state.tab === 'settings')) state.tab = 'schedule';
     $('app').innerHTML =
       '<header><h1>' + esc(S.labName) + '</h1>' +
       '<span class="muted">' + esc(S.email) + (S.isAdmin ? ' · ' + t('admin') : '') + ' · <a href="#" id="out">' + t('signOut') + '</a> ' + langButton() + '</span>' +
@@ -244,7 +359,153 @@
     });
     if (state.tab === 'schedule') renderSchedule();
     else if (state.tab === 'mine') renderList(false);
+    else if (state.tab === 'settings') renderSettings();
     else renderList(true);
+  }
+
+  /* ---------- admin settings page ---------- */
+
+  function renderSettings() {
+    var v = $('view');
+    v.innerHTML = '<div id="setmsg"></div><div id="sets"><p class="muted">' + t('loading') + '</p></div>';
+    if (state.flash) { note('setmsg', state.flash.text, state.flash.kind); state.flash = null; }
+    call('getSettings', TOKEN).then(drawSettings).catch(function (m) { note('setmsg', m, 'err'); });
+  }
+
+  // After a change: reload the session (rules, dates, admin list), come back to this tab and show the message
+  function settingsDone(msg) { state.flash = { text: msg, kind: 'ok' }; state.tab = 'settings'; start(); }
+  function settingsErr(msg) { note('setmsg', msg, 'err'); window.scrollTo(0, 0); }
+
+  function drawSettings(G) {
+    var DAYS = [['Mon', 'lun.', 'Mon'], ['Tue', 'mar.', 'Tue'], ['Wed', 'mer.', 'Wed'], ['Thu', 'jeu.', 'Thu'], ['Fri', 'ven.', 'Fri'], ['Sat', 'sam.', 'Sat'], ['Sun', 'dim.', 'Sun']];
+    var open = G.openDays.length ? G.openDays : DAYS.map(function (d) { return d[0].toLowerCase(); });
+    var field = function (id, label, value, opts) {
+      opts = opts || {};
+      return '<label class="f" for="' + id + '">' + label + (opts.help ? '<span class="sub">' + opts.help + '</span>' : '') + '</label>' +
+        '<input type="' + (opts.type || 'text') + '" id="' + id + '" value="' + esc(value) + '"' + (opts.cls ? ' class="' + opts.cls + '"' : '') +
+        (opts.min != null ? ' min="' + opts.min + '"' : '') + (opts.max != null ? ' max="' + opts.max + '"' : '') + '>' +
+        (opts.unit ? '<span class="unit">' + opts.unit + '</span>' : '');
+    };
+    var saveBtn = '<p style="margin:14px 0 0"><button class="btn primary" data-saverules>' + t('sSave') + '</button></p>';
+
+    // 1. Computers
+    var h = '<section class="panel"><h3>' + t('sComputers') + '</h3><p class="help">' + t('sComputersHelp') + '</p>' +
+      G.computers.map(function (c, k) {
+        return '<div class="comp' + (c.available ? '' : ' offc') + '" data-comp="' + k + '"><div class="top"><b>' + esc(c.name) + (c.noteFr ? '*' : '') +
+          (c.ram ? ' <span class="muted" style="font-weight:normal">' + esc(t('gb', c.ram)) + '</span>' : '') +
+          (c.software ? '<span class="soft">' + esc(c.software) + '</span>' : '') + '</b>' +
+          '<div class="tools">' +
+          '<button class="btn sm" data-move="' + k + '" data-dir="-1" title="' + t('sUp') + '" aria-label="' + t('sUp') + '"' + (k === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button class="btn sm" data-move="' + k + '" data-dir="1" title="' + t('sDown') + '" aria-label="' + t('sDown') + '"' + (k === G.computers.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          '<label class="sw" style="margin-left:8px"><input type="checkbox" data-avail="' + k + '"' + (c.available ? ' checked' : '') + '> ' + t('sBookable') + '</label></div></div>' +
+          '<details><summary>' + t('sNotesEdit') + '</summary>' +
+          '<label class="f">' + t('sName') + '<span class="sub">' + t('sNameHelp') + '</span></label><input type="text" maxlength="40" data-name="' + k + '" value="' + esc(c.name) + '">' +
+          '<label class="f">' + t('sRam') + '</label><input type="number" class="short" min="1" data-ram="' + k + '" value="' + esc(c.ram) + '">' +
+          '<label class="f">' + t('sSoftware') + '<span class="sub">' + t('sSoftwareHelp') + '</span></label><input type="text" data-soft="' + k + '" value="' + esc(c.software) + '">' +
+          '<label class="f">' + t('sNoteFr') + '<span class="sub">' + t('sNoteHelp') + '</span></label><input type="text" data-nfr="' + k + '" value="' + esc(c.noteFr) + '">' +
+          '<label class="f">' + t('sNoteEn') + '</label><input type="text" data-nen="' + k + '" value="' + esc(c.noteEn) + '">' +
+          '<p style="margin:10px 0 0;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between"><button class="btn primary" data-savecomp="' + k + '">' + t('save') + '</button>' +
+          '<button class="btn danger" data-delcomp="' + k + '">' + t('sDelete') + '</button></p></details></div>';
+      }).join('') +
+      // Add a computer
+      '<details style="margin-top:10px"><summary class="btn" style="display:inline-block">+ ' + t('sAddComp') + '</summary><div class="comp" style="margin-top:8px">' +
+      '<label class="f">' + t('sName') + '</label><input type="text" maxlength="40" id="ncname" placeholder="Poste 10">' +
+      '<label class="f">' + t('sRam') + '</label><input type="number" class="short" min="1" id="ncram">' +
+      '<label class="f">' + t('sSoftware') + '<span class="sub">' + t('sSoftwareHelp') + '</span></label><input type="text" id="ncsoft">' +
+      '<label class="f">' + t('sNoteFr') + '<span class="sub">' + t('sNoteHelp') + '</span></label><input type="text" id="ncnfr">' +
+      '<label class="f">' + t('sNoteEn') + '</label><input type="text" id="ncnen">' +
+      '<p style="margin:10px 0 0"><button class="btn primary" id="ncadd">' + t('sAddCompBtn') + '</button></p></div></details>' +
+      '</section>';
+
+    // 2. Confirmation emails
+    h += '<section class="panel"><h3>' + t('sEmails') + '</h3><p class="help">' + t('sEmailsHelp') + '</p>' +
+      field('r1', t('sReminder1'), G.reminder1, { type: 'number', cls: 'short', min: 1, max: 336, unit: t('sHoursBefore') }) +
+      field('r2', t('sReminder2'), G.reminder2, { type: 'number', cls: 'short', min: 1, max: 336, unit: t('sHoursBefore'), help: t('sReminder2Help') }) +
+      field('rdl', t('sDeadline'), G.deadline, { type: 'number', cls: 'short', min: 0, max: 168, unit: t('sHoursBefore') }) +
+      saveBtn + '</section>';
+
+    // 3. Hours and limits
+    h += '<section class="panel"><h3>' + t('sRules') + '</h3>' +
+      '<label class="f">' + t('sOpenDays') + '</label><div class="days">' + DAYS.map(function (d) {
+        return '<label><input type="checkbox" data-day="' + d[0] + '"' + (open.indexOf(d[0].toLowerCase()) >= 0 ? ' checked' : '') + '> ' + (LANG === 'en' ? d[2] : d[1]) + '</label>';
+      }).join('') + '</div>' +
+      '<div class="two" style="display:flex;gap:16px;flex-wrap:wrap"><div>' + field('dst', t('sOpens'), G.dayStart, { cls: 'short' }) + '</div><div>' +
+      field('den', t('sCloses'), G.dayEnd, { cls: 'short' }) + '</div></div><p class="help" style="margin-top:4px">' + esc(t('sTimeHelp', G.slotMin)) + '</p>' +
+      field('wk', t('sWeeks'), G.weeks, { type: 'number', cls: 'short', min: 1, max: 12, unit: t('sWeeksUnit') }) +
+      field('msl', t('sMaxSlots'), G.maxSlots, { type: 'number', cls: 'short', min: 1, unit: t('sSlotsUnit') + ' (' + G.slotMin + ' min)' }) +
+      field('mup', t('sMaxUpcoming'), G.maxUpcoming, { type: 'number', cls: 'short', min: 1, max: 100, help: t('sMaxUpcomingHelp') }) +
+      saveBtn + '</section>';
+
+    // 4. Lab info and sign-up
+    h += '<section class="panel"><h3>' + t('sLab') + '</h3>' +
+      field('lname', t('sLabName'), G.labName) + field('laddr', t('sAddress'), G.address) + field('lcont', t('sContact'), G.contact) +
+      field('lrep', t('sReplyTo'), G.replyTo, { type: 'email' }) + field('ldom', t('sDomains'), G.domains, { help: t('sDomainsHelp') }) +
+      saveBtn + '</section>';
+
+    // 5. Admins
+    h += '<section class="panel"><h3>' + t('sAdmins') + '</h3><p class="help">' + t('sAdminsHelp') + '</p>' +
+      G.admins.map(function (a) {
+        return '<div class="arow"><span>' + esc(a.email) + '</span>' + (a.locked ? '<span class="muted">' + t('sLocked') + '</span>' :
+          '<button class="btn danger" data-rmadmin="' + esc(a.email) + '">' + t('sRemove') + '</button>') + '</div>';
+      }).join('') +
+      '<form id="addadm" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><input type="email" id="newadm" required placeholder="' + t('placeholder') + '" style="flex:1;min-width:200px">' +
+      '<button class="btn primary">' + t('sAddAdmin') + '</button></form></section>';
+
+    // 6. Change history
+    h += '<section class="panel"><h3>' + t('sLog') + '</h3><p class="help">' + t('sLogHelp') + '</p>' +
+      (G.log.length ? '<div class="wrap"><table class="logtbl"><thead><tr><th>' + t('sWhen') + '</th><th>' + t('sWho') + '</th><th>' + t('sWhat') + '</th><th>' + t('sBefore') + '</th><th>' + t('sAfter') + '</th></tr></thead><tbody>' +
+        G.log.map(function (r) { return '<tr><td>' + esc(r.when) + '</td><td>' + esc(r.who) + '</td><td>' + esc(r.what) + '</td><td>' + esc(r.before) + '</td><td>' + esc(r.after) + '</td></tr>'; }).join('') +
+        '</tbody></table></div>' : '<p class="muted">' + t('sLogEmpty') + '</p>') + '</section>';
+
+    $('sets').innerHTML = h;
+
+    // Computers: the "Bookable" switch saves right away; RAM and notes save with their button
+    var q = function (attr, k) { return document.querySelector('[' + attr + '="' + k + '"]').value; };
+    var compPayload = function (k) {
+      return { available: document.querySelector('[data-avail="' + k + '"]').checked, name: q('data-name', k), ram: q('data-ram', k),
+        software: q('data-soft', k), noteFr: q('data-nfr', k), noteEn: q('data-nen', k) };
+    };
+    var saveComp = function (k, el) {
+      el.disabled = true;
+      call('saveComputer', TOKEN, G.computers[k].name, compPayload(k)).then(settingsDone).catch(function (m) { el.disabled = false; settingsErr(m); });
+    };
+    $('sets').onchange = function (e) { var a = e.target.getAttribute('data-avail'); if (a != null) saveComp(+a, e.target); };
+    $('sets').onclick = function (e) {
+      var sc = e.target.closest('[data-savecomp]'), sr = e.target.closest('[data-saverules]'), rm = e.target.closest('[data-rmadmin]');
+      var mv = e.target.closest('[data-move]'), dc = e.target.closest('[data-delcomp]');
+      if (sc) saveComp(+sc.getAttribute('data-savecomp'), sc);
+      if (mv) {
+        mv.disabled = true;
+        call('moveComputer', TOKEN, G.computers[+mv.getAttribute('data-move')].name, +mv.getAttribute('data-dir')).then(settingsDone).catch(settingsErr);
+      }
+      if (dc) {
+        var cname = G.computers[+dc.getAttribute('data-delcomp')].name;
+        if (!confirm(t('sAskDelete', cname))) return;
+        call('deleteComputer', TOKEN, cname).then(settingsDone).catch(settingsErr);
+      }
+      if (e.target.id === 'ncadd') {
+        e.target.disabled = true;
+        call('addComputer', TOKEN, { name: $('ncname').value, ram: $('ncram').value, software: $('ncsoft').value, noteFr: $('ncnfr').value, noteEn: $('ncnen').value })
+          .then(settingsDone).catch(function (m) { e.target.disabled = false; settingsErr(m); });
+      }
+      if (rm) {
+        var who = rm.getAttribute('data-rmadmin');
+        if (!confirm(t('sAskRemove', who))) return;
+        call('removeAdmin', TOKEN, who).then(settingsDone).catch(settingsErr);
+      }
+      if (sr) {
+        var days = Array.prototype.filter.call(document.querySelectorAll('[data-day]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-day'); });
+        var r = { reminder1: $('r1').value, reminder2: $('r2').value, deadline: $('rdl').value, openDays: days, dayStart: $('dst').value, dayEnd: $('den').value,
+          weeks: $('wk').value, maxSlots: $('msl').value, maxUpcoming: $('mup').value, labName: $('lname').value, address: $('laddr').value,
+          contact: $('lcont').value, replyTo: $('lrep').value, domains: $('ldom').value };
+        sr.disabled = true;
+        call('saveRules', TOKEN, r).then(settingsDone).catch(function (m) { sr.disabled = false; settingsErr(m); });
+      }
+    };
+    $('addadm').onsubmit = function (e) {
+      e.preventDefault();
+      call('addAdmin', TOKEN, $('newadm').value).then(settingsDone).catch(settingsErr);
+    };
   }
 
   /* ---------- schedule grid ---------- */
@@ -261,7 +522,8 @@
       '<div class="nav">' +
       '<select id="rsel"><option value="all">' + t('allComputers') + '</option></select>' +
       '<span class="legend"><span><i style="background:#fff"></i>' + t('legendFree') + '</span><span><i style="background:var(--blue-l)"></i>' + t('legendMine') +
-      '</span><span><i style="background:var(--gray)"></i>' + t('legendTaken') + '</span><span><i style="background:#d9d9d9"></i>' + t('legendOff') + '</span></span>' +
+      '</span><span><i style="background:var(--gray)"></i>' + t('legendTaken') + '</span><span><i style="background:#d9d9d9"></i>' + t('legendOff') +
+      '</span><span><i class="blocked"></i>' + t('legendBlocked') + '</span></span>' +
       '</div>' +
       '<div class="wrap" id="grid"><p class="muted" style="padding:12px">' + t('loading') + '</p></div>' +
       '<div id="foot"></div>' +
@@ -317,20 +579,33 @@
   function drawGrid(day) {
     if (!day.computers.length) { $('grid').innerHTML = '<p style="padding:12px">' + t('noComputers') + '</p>'; return; }
 
-    // RAM filter options, built from the computers list
-    var rams = [];
-    day.computers.forEach(function (c) { if (c.ram && rams.indexOf(c.ram) < 0) rams.push(c.ram); });
+    // Filter options, built from the computers list: by RAM ("r:64") and by software ("s:SPSS")
+    var softList = function (c) { return c.software ? c.software.split(/\s*,\s*/) : []; };
+    var rams = [], softs = [];
+    day.computers.forEach(function (c) {
+      if (c.ram && rams.indexOf(c.ram) < 0) rams.push(c.ram);
+      softList(c).forEach(function (s) { if (softs.indexOf(s) < 0) softs.push(s); });
+    });
     rams.sort(function (a, b) { return Number(b) - Number(a); });
-    if (rams.indexOf(state.ram) < 0) state.ram = 'all';
+    softs.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+    var filters = [['all', t('allComputers')]];
+    if (rams.length > 1) rams.forEach(function (r) { filters.push(['r:' + r, t('ramOnly', r)]); });
+    softs.forEach(function (s) { filters.push(['s:' + s, t('withSoftware', s)]); });
+    if (!filters.some(function (f) { return f[0] === state.ram; })) state.ram = 'all';
     var rsel = $('rsel');
     if (rsel) {
-      rsel.innerHTML = '<option value="all">' + t('allComputers') + '</option>' + rams.map(function (r) {
-        return '<option value="' + esc(r) + '"' + (state.ram === r ? ' selected' : '') + '>' + esc(t('ramOnly', r)) + '</option>';
+      rsel.innerHTML = filters.map(function (f) {
+        return '<option value="' + esc(f[0]) + '"' + (state.ram === f[0] ? ' selected' : '') + '>' + esc(f[1]) + '</option>';
       }).join('');
-      rsel.style.display = rams.length > 1 ? '' : 'none';
+      rsel.style.display = filters.length > 1 ? '' : 'none';
     }
+    var shown = function (c) {
+      if (state.ram === 'all') return true;
+      if (state.ram.slice(0, 2) === 'r:') return c.ram === state.ram.slice(2);
+      return softList(c).indexOf(state.ram.slice(2)) >= 0;
+    };
     var cols = [];
-    day.computers.forEach(function (c, j) { if (state.ram === 'all' || c.ram === state.ram) cols.push(j); });
+    day.computers.forEach(function (c, j) { if (shown(c)) cols.push(j); });
 
     $('dtitle').textContent = day.dateLabel;
 
@@ -339,7 +614,8 @@
       var c = day.computers[j];
       var tip = !c.available ? t('offTitle') : c.note;
       return '<th' + (c.available ? '' : ' class="offh"') + ' title="' + esc(tip) + '">' + esc(c.name) + (c.note ? '*' : '') +
-        (c.ram ? '<br><span style="font-weight:normal">' + esc(t('gb', c.ram)) + '</span>' : '') + '</th>';
+        (c.ram ? '<br><span style="font-weight:normal">' + esc(t('gb', c.ram)) + '</span>' : '') +
+        (c.software ? '<span class="swh">' + esc(c.software) + '</span>' : '') + '</th>';
     }).join('') + '</tr></thead><tbody>';
     day.slots.forEach(function (sl, i) {
       h += '<tr><td class="time">' + esc(sl.startLabel) + '</td>';
@@ -350,7 +626,10 @@
         else if (cell.st === 'taken') {
           txt = cell.who ? esc(cell.who.split('@')[0]) : t('booked');
           if (cell.id) cls += ' admin';
-        }
+        } else if (cell.st === 'blocked') {
+          txt = esc(cell.note || t('legendBlocked'));
+          if (cell.id) cls += ' admin';
+        } else if (cell.st === 'off' && S.isAdmin) cls += ' admin'; // admins can still book unavailable computers
         h += '<td><span class="c ' + cls + '" data-i="' + i + '" data-j="' + j + '">' + txt + '</span></td>';
       });
       h += '</tr>';
@@ -368,8 +647,10 @@
       if (!el) return;
       var i = +el.getAttribute('data-i'), j = +el.getAttribute('data-j');
       var cell = state.day.cells[i][j];
-      if (cell.st === 'free') bookDialog(i, j);
-      else if (cell.id) bookingDialog(cell, state.day.computers[j].name);
+      if (cell.id) bookingDialog(cell, state.day.computers[j].name);
+      else if (S.isAdmin && (cell.st === 'free' || cell.st === 'off' || cell.st === 'past')) {
+        adminDialog({ computer: state.day.computers[j].name, date: state.date, startIdx: i, len: Math.max(1, cell.run || 1), mode: 'self' });
+      } else if (cell.st === 'free') bookDialog(i, j);
     };
   }
 
@@ -383,6 +664,7 @@
     }
     modal('<h3>' + esc(t('bookTitle', comp + (compNote ? '*' : ''))) + (ram ? ' <span class="muted" style="font-weight:normal">' + esc(t('ramParen', ram)) + '</span>' : '') + '</h3>' +
       (compNote ? '<p class="warn">* ' + esc(compNote) + '</p>' : '') +
+      (day.computers[j].software ? '<p class="muted" style="margin:0">' + esc(t('softwareLine', day.computers[j].software)) + '</p>' : '') +
       '<p>' + esc(day.dateLabel) + '<br>' + t('fromUntil', esc(day.slots[i].startLabel), '<select id="dur">' + opts + '</select>') + '</p>' +
       '<div id="mmsg"></div>' +
       '<div class="row"><button class="btn" data-close>' + t('back') + '</button><button class="btn primary" id="go">' + t('book') + '</button></div>');
@@ -396,16 +678,79 @@
 
   function bookingDialog(cell, comp) {
     var mine = cell.st === 'mine';
+    var who = cell.st === 'blocked' ? t('legendBlocked') + (cell.note ? ' : ' + cell.note : '') : (cell.who && !mine ? cell.who : '');
     modal('<h3>' + esc(comp) + '</h3>' +
-      '<p>' + esc(cell.when) + '<br><span class="muted">' + esc(t(cell.status)) + (cell.who && !mine ? ' · ' + esc(cell.who) : '') + '</span></p>' +
+      '<p>' + esc(cell.when) + '<br><span class="muted">' + esc(t(cell.status)) + (who ? ' · ' + esc(who) : '') + '</span>' +
+      (cell.note && cell.st !== 'blocked' ? '<br><span class="muted">' + esc(cell.note) + '</span>' : '') + '</p>' +
       '<div id="mmsg"></div>' +
       '<div class="row"><button class="btn" data-close>' + t('back') + '</button>' +
       (mine && cell.status !== 'Confirmed' ? '<button class="btn primary" id="conf">' + t('confirm') + '</button>' : '') +
+      (S.isAdmin && cell.edit ? '<button class="btn" id="edt">' + t('edit') + '</button>' : '') +
       '<button class="btn danger" id="canc">' + t('cancelBooking') + '</button></div>');
     if ($('conf')) $('conf').onclick = function () { act('confirmBooking', cell.id); };
+    if ($('edt')) $('edt').onclick = function () { adminDialog(editPrefill(cell.edit)); };
     $('canc').onclick = function () {
-      if (!mine && !confirm(t('askAdminCancel', cell.who))) return;
+      if (!mine && !confirm(cell.who ? t('askAdminCancel', cell.who) : t('askCancel'))) return;
       act('cancelBooking', cell.id);
+    };
+  }
+
+  /* ---------- admin: add or edit any booking, or block computers ---------- */
+
+  // Turns a booking's edit info (from the server) into the dialog's starting values
+  function editPrefill(e) {
+    var mode = !e.email ? 'block' : (e.email === S.email ? 'self' : 'other');
+    return { id: e.id, computer: e.computer, date: e.date, startIdx: e.startIdx, len: e.len, mode: mode, email: e.email, note: e.note };
+  }
+
+  function adminDialog(pre) {
+    var A = S.adminData, isEdit = !!pre.id;
+    var n = A.slots.length - 1;
+    var opt = function (v, label, sel) { return '<option value="' + esc(v) + '"' + (sel ? ' selected' : '') + '>' + esc(label) + '</option>'; };
+    var comps = A.computers.map(function (c) {
+      return opt(c.name, c.name + (c.ram ? ' – ' + t('gb', c.ram) : '') + (c.available ? '' : ' (' + t('offShort') + ')'), c.name === pre.computer);
+    }).join('') + (isEdit ? '' : opt('*', t('everyComputer'), false));
+    var starts = '', ends = '';
+    for (var i = 0; i < n; i++) starts += opt(i, A.slots[i], i === pre.startIdx);
+    for (var k = 1; k <= n; k++) ends += opt(k, A.slots[k], k === pre.startIdx + pre.len);
+    modal('<h3>' + t(isEdit ? 'editTitle' : 'addTitle') + '</h3><div class="form">' +
+      '<label>' + t('fDate') + '</label><input type="date" id="adate" min="' + A.today + '" value="' + esc(pre.date) + '">' +
+      '<label>' + t('fComputer') + '</label><select id="acomp">' + comps + '</select>' +
+      '<div class="two"><div><label>' + t('fFrom') + '</label><select id="afrom">' + starts + '</select></div>' +
+      '<div><label>' + t('fTo') + '</label><select id="ato">' + ends + '</select></div></div>' +
+      '<label>' + t('fFor') + '</label><select id="amode">' + opt('self', t('forSelf') + ' (' + S.email + ')', pre.mode === 'self') +
+      opt('other', t('forOther'), pre.mode === 'other') + opt('block', t('forBlock'), pre.mode === 'block') + '</select>' +
+      '<div id="aemailbox"><label>' + t('fEmail') + '</label><input type="email" id="aemail" value="' + esc(pre.mode === 'other' ? pre.email : '') + '"></div>' +
+      '<label id="anotelbl"></label><input type="text" id="anote" maxlength="200" value="' + esc(pre.note || '') + '">' +
+      '<label class="chk" id="anotifybox"><input type="checkbox" id="anotify" checked> ' + t('fNotify') + '</label>' +
+      '<p class="muted" style="margin:10px 0 0">' + t('adminBookHint') + '</p>' +
+      '</div><div id="mmsg"></div>' +
+      '<div class="row"><button class="btn" data-close>' + t('back') + '</button><button class="btn primary" id="asave">' + t('save') + '</button></div>');
+
+    // Show only the fields that apply to the chosen "For"
+    function sync() {
+      var m = $('amode').value;
+      $('aemailbox').style.display = m === 'other' ? '' : 'none';
+      $('anotifybox').style.display = m === 'other' ? '' : 'none';
+      $('anotelbl').textContent = m === 'block' ? t('fLabel') : t('fNote');
+      var all = $('acomp').querySelector('option[value="*"]');
+      if (all) { all.disabled = m !== 'block'; if (m !== 'block' && $('acomp').value === '*') $('acomp').selectedIndex = 0; }
+    }
+    $('amode').onchange = sync;
+    sync();
+
+    $('asave').onclick = function () {
+      var from = +$('afrom').value, to = +$('ato').value;
+      if (to <= from) { note('mmsg', t('endBeforeStart'), 'err'); return; }
+      var m = $('amode').value;
+      var p = { id: pre.id || '', computer: $('acomp').value, date: $('adate').value, startIdx: from, len: to - from,
+        mode: m, email: $('aemail').value, note: $('anote').value, notify: m === 'other' && $('anotify').checked };
+      $('asave').disabled = true;
+      call('adminSaveBooking', TOKEN, p).then(function (msg) {
+        closeModal();
+        if (state.tab === 'schedule') { note('smsg', msg, 'ok'); loadDay(); }
+        else { renderShell(); note('lmsg2', msg, 'ok'); }
+      }).catch(function (msg) { note('mmsg', msg, 'err'); $('asave').disabled = false; });
     };
   }
 
@@ -421,19 +766,29 @@
 
   function renderList(admin) {
     var v = $('view');
-    v.innerHTML = '<div id="lmsg2"></div><div id="list"><p class="muted">' + t('loading') + '</p></div>' +
+    v.innerHTML = '<div id="lmsg2"></div>' +
+      (admin ? '<p><button class="btn primary" id="addb">' + t('addBooking') + '</button></p>' : '') +
+      '<div id="list"><p class="muted">' + t('loading') + '</p></div>' +
       (admin ? '<p class="muted">' + t('adminNote') + '</p>' : '');
+    if (admin) $('addb').onclick = function () {
+      var first = S.adminData.computers.filter(function (c) { return c.available; })[0] || S.adminData.computers[0];
+      adminDialog({ computer: first ? first.name : '', date: state.date || S.adminData.today, startIdx: 0, len: 1, mode: 'other' });
+    };
     call(admin ? 'getAllUpcoming' : 'getMyBookings', TOKEN).then(function (list) {
-      $('list').innerHTML = list.length ? list.map(function (b) {
+      $('list').innerHTML = list.length ? list.map(function (b, idx) {
         var badge = b.status === 'Awaiting confirmation' ? 'Awaiting' : b.status;
+        var who = b.email ? b.email : t('legendBlocked') + (b.note ? ' : ' + b.note : '');
         return '<div class="card"><div><b>' + esc(b.computer) + '</b> · ' + esc(b.when) +
-          (admin ? '<br><span class="muted">' + esc(b.email) + '</span>' : '') +
+          (admin ? '<br><span class="muted">' + esc(who) + (b.email && b.note ? ' · ' + esc(b.note) : '') + '</span>' : '') +
           '<br><span class="badge ' + badge + '">' + esc(t(b.status)) + '</span></div>' +
           '<div class="actions">' +
           (!admin && b.status !== 'Confirmed' ? '<button class="btn primary" data-confirm="' + b.id + '">' + t('confirm') + '</button>' : '') +
+          (admin && b.id ? '<button class="btn" data-edit="' + idx + '">' + t('edit') + '</button>' : '') +
           '<button class="btn danger" data-cancel="' + b.id + '">' + t('cancel') + '</button></div></div>';
       }).join('') : '<p class="muted">' + t('noUpcoming') + '</p>';
       $('list').onclick = function (e) {
+        var ed = e.target.closest('[data-edit]');
+        if (ed) { adminDialog(editPrefill(list[+ed.getAttribute('data-edit')].edit)); return; }
         var c = e.target.closest('[data-confirm]'), x = e.target.closest('[data-cancel]');
         if (c) call('confirmBooking', TOKEN, c.getAttribute('data-confirm')).then(function () { renderShell(); }).catch(function (m) { note('lmsg2', m, 'err'); });
         if (x && confirm(t('askCancel'))) call('cancelBooking', TOKEN, x.getAttribute('data-cancel')).then(function () { renderShell(); }).catch(function (m) { note('lmsg2', m, 'err'); });

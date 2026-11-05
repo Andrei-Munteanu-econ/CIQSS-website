@@ -5,12 +5,30 @@
 - **Booking site:** https://script.google.com/macros/s/AKfycbzgE_lN2AWzTbcQvCm7bzf5fy8uheLRnaHcGYSW-6leyserfmL2deMPDPPlGUmqa-xu/exec
 - **Owner account:** reservation.ciqss.uqam@gmail.com (owns the spreadsheet, the script, the deployment and sends all emails)
 - **Spreadsheet:** "CIQSS booking" in that account's Google Drive. The script is under Extensions → Apps Script.
-- **Live version:** 7. To update the code: paste the new files, save, then Deploy → Manage deployments → pencil → Version: New version → Deploy. The URL stays the same.
+- **Live version:** 7. (The code in this repo adds admin add / edit / block and the admin settings page; deploy it as version 8.) To update the code: paste the new files, save, then Deploy → Manage deployments → pencil → Version: New version → Deploy. The URL stays the same.
 
 ## Admin tasks
 
 - **See all bookings:** sign in on the site with an address listed in Config → ADMIN_EMAILS. You get a "Toutes les réservations (admin)" tab, and names appear on taken slots in the "Horaire" grid.
+- **Add a booking:** click any empty slot in "Horaire" (unavailable computers included), or use "+ Ajouter une réservation" in the admin tab. Choose the date, computer, start and end, and who it is for:
+  - *Moi-même*: yourself.
+  - *Une autre personne*: type their email. They don't need to be registered. Tick "Aviser la personne par courriel" to send them a notice.
+  - *Blocage*: a closure or maintenance with no person attached. Its label (e.g. "Entretien") is shown to everyone on the grid. Pick *Tous les ordinateurs* to block every computer at once; computers already booked at that time are skipped and listed.
+
+  Admin bookings are confirmed right away (no confirmation emails), can run up to the whole day, and can be on any future date. The one-computer-at-a-time rule still applies to the person.
+- **Change a booking:** click it in "Horaire" → **Modifier** (or **Modifier** in the admin tab). You can move it to another day, computer or time, or give it to someone else. If you tick the email box, the person gets a "booking changed" email; if you reassign it, the previous person gets a cancellation email.
 - **Cancel a booking:** click the slot in "Horaire" (or use "Annuler" in the admin tab). The person is emailed. Changing Status to `Cancelled` in the Bookings tab also frees the slot, but sends no email.
+- **Add a booking in the spreadsheet:** on a new row of the Bookings tab, fill in Computer (exact name from the Computers tab), Start, End (e.g. `2026-11-12 10:00`) and Email (leave Email blank and write a label in **Note** for a block). Leave Booking ID and Status blank. The script fills them in (Status = Confirmed) as soon as the row is complete, and the slot is taken immediately.
+- **Settings page (no spreadsheet needed):** admins have a **Réglages (admin)** tab on the booking site. There they can:
+  - turn each computer's **Réservable** switch on or off (saved instantly; existing bookings are kept, and the page says how many remain);
+  - add, rename, reorder (↑ ↓) or delete computers. A rename carries all the computer's bookings over to the new name. Deleting is refused while the computer has upcoming bookings;
+  - edit RAM, notes and **software** (e.g. "SPSS, Stata, R"). Software is shown under the computer's name on the schedule, and researchers can filter with "Avec SPSS", etc.;
+  - set when the confirmation email and an optional second reminder go out, and when unconfirmed bookings are cancelled;
+  - set opening days and hours, weeks shown, longest booking and upcoming bookings per person;
+  - edit lab name, address, contact, reply-to and allowed sign-up domains;
+  - add or remove admins.
+
+  Every change is checked before saving (e.g. a reminder must come before the deadline) and is recorded in the **Log** tab (who, what, before, after), shown at the bottom of the page. Admins can't remove themselves or the owner account. Only slot length and the web app URL stay spreadsheet-only.
 - **See the site as a researcher does:** sign in with a non-admin address in a private window.
 - **Add an admin:** add their email to ADMIN_EMAILS (comma-separated).
 - **Rules that apply to everyone, admins included:** one computer at a time (no overlapping bookings). Admins are exempt only from MAX_UPCOMING_BOOKINGS.
@@ -57,7 +75,7 @@ Setup takes about 15 minutes on a computer, not a phone.
 
 ## 4. Adjust the settings
 
-The **Computers** tab lists the lab's machines as on the lab plan: Poste 1–9 and Poste Antoine (16 or 64 GB of RAM). Columns: **Computer**, **RAM (GB)**, **Available**, **Notes**, **Notes (English)**.
+The **Computers** tab lists the lab's machines as on the lab plan: Poste 1–9 and Poste Antoine (16 or 64 GB of RAM). Columns: **Computer**, **RAM (GB)**, **Available**, **Notes**, **Notes (English)**, **Software**. Admins can manage all of this from the settings page instead.
 
 - **Available** unticked: the computer stays on the booking page, greyed out, and cannot be booked (Postes 5 and 8 for now).
 - **Notes**: a computer with a note gets an asterisk (e.g. "Poste Antoine*"); the note is shown under the grid and in the booking dialog. Write it in French in **Notes** and in English in **Notes (English)** (blank = the French note is used).
@@ -106,8 +124,8 @@ In the **Config** tab, change any value. Changes apply immediately.
 - **Email limit.** A free Gmail account can send about 100 emails a day through scripts; a Google Workspace account can send more. Each booking uses at most one or two emails (the confirm request, and a notice if it is auto-cancelled). Sign-in links count too.
 - **Timing.** The reminder check runs every 15 minutes, so emails and cancellations can be up to 15 minutes later than the exact hour.
 - **Lost or leaked link.** Delete that person's row in the **Users** tab. They then request a new link from the sign-in page; their old bookings stay.
-- **Editing by hand.** You can edit the Bookings tab directly. To cancel a booking manually, set its Status to `Cancelled`. Don't change the Booking ID or the Email action key columns.
-- **Renaming a computer** in the Computers tab detaches its existing bookings, which use the old name. Rename only when it has no upcoming bookings.
+- **Editing by hand.** You can edit the Bookings tab directly. To cancel a booking manually, set its Status to `Cancelled`. Don't change the Booking ID or the Email action key columns. New rows typed in with a blank Booking ID are completed automatically (see Admin tasks). The **Note** and **Created by** columns are added the first time the new code runs.
+- **Renaming a computer:** do it from the settings page, which renames its bookings too. Renaming directly in the Computers tab detaches its existing bookings, which keep the old name.
 - **Updating the code later.** After pasting new code, go to **Deploy → Manage deployments → edit (pencil) → Version: New version → Deploy**. The URL stays the same.
 - **Email links.** The "confirm" and "cancel" links in emails open a page with a button. Nothing changes until the button is pressed, so email security scanners that open links can't confirm or cancel bookings by accident.
 - **Privacy.** Only admins see who booked a slot; other researchers see "Booked".

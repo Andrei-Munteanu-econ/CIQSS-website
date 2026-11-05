@@ -11,7 +11,8 @@
  * See README.md for the step-by-step guide.
  */
 
-const SHEET = { CONFIG: 'Config', COMPUTERS: 'Computers', BOOKINGS: 'Bookings', USERS: 'Users' };
+const SHEET = { CONFIG: 'Config', COMPUTERS: 'Computers', BOOKINGS: 'Bookings', USERS: 'Users', LOG: 'Log' };
+const LOG_HEADERS = ['When', 'Admin', 'Change', 'Before', 'After'];
 
 // Status values stored in the Bookings sheet (the page translates them for display)
 const STATUS = {
@@ -23,8 +24,10 @@ const STATUS = {
 const ACTIVE_STATUSES = [STATUS.BOOKED, STATUS.AWAITING, STATUS.CONFIRMED];
 
 // Bookings sheet columns (1-based)
-const B = { ID: 1, COMPUTER: 2, START: 3, END: 4, EMAIL: 5, STATUS: 6, CREATED: 7, REMINDED: 8, CONFIRMED: 9, CANCELLED: 10, REASON: 11, KEY: 12 };
-const BOOKING_HEADERS = ['Booking ID', 'Computer', 'Start', 'End', 'Email', 'Status', 'Created', 'Reminder sent', 'Confirmed at', 'Cancelled at', 'Cancel reason', 'Email action key'];
+// A booking with a blank Email is a block (closure, maintenance, ...): its Note is shown to everyone on the grid.
+const B = { ID: 1, COMPUTER: 2, START: 3, END: 4, EMAIL: 5, STATUS: 6, CREATED: 7, REMINDED: 8, CONFIRMED: 9, CANCELLED: 10, REASON: 11, KEY: 12, NOTE: 13, BY: 14 };
+const BOOKING_HEADERS = ['Booking ID', 'Computer', 'Start', 'End', 'Email', 'Status', 'Created', 'Reminder sent', 'Confirmed at', 'Cancelled at', 'Cancel reason', 'Email action key', 'Note', 'Created by'];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USER_HEADERS = ['Email', 'Personal link token', 'Registered', 'Last link sent', 'Language'];
 
 const DEFAULT_CONFIG = [
@@ -49,20 +52,21 @@ const DEFAULT_CONFIG = [
 // The lab's computers (plan of November 2026): name, RAM (GB), available, note (French), note (English).
 // A computer with a note gets an asterisk on the booking page and the note is shown under the grid.
 // Unavailable computers stay on the page, greyed out, and cannot be booked.
-const COMPUTERS_HEADERS = ['Computer', 'RAM (GB)', 'Available', 'Notes', 'Notes (English)'];
+// Software: comma-separated list (e.g. "SPSS, Stata, R"), shown under the computer's name; researchers can filter on it.
+const COMPUTERS_HEADERS = ['Computer', 'RAM (GB)', 'Available', 'Notes', 'Notes (English)', 'Software'];
 const DEFAULT_COMPUTERS = [
-  ['Poste 1', 16, true, '', ''],
-  ['Poste 2', 16, true, '', ''],
-  ['Poste 3', 64, true, '', ''],
-  ['Poste 4', 64, true, '', ''],
-  ['Poste 5', 16, false, '', ''],
-  ['Poste 6', 16, true, '', ''],
-  ['Poste 7', 64, true, '', ''],
-  ['Poste 8', 64, false, '', ''],
-  ['Poste 9', 64, true, '', ''],
+  ['Poste 1', 16, true, '', '', ''],
+  ['Poste 2', 16, true, '', '', ''],
+  ['Poste 3', 64, true, '', '', ''],
+  ['Poste 4', 64, true, '', '', ''],
+  ['Poste 5', 16, false, '', '', ''],
+  ['Poste 6', 16, true, '', '', ''],
+  ['Poste 7', 64, true, '', '', ''],
+  ['Poste 8', 64, false, '', '', ''],
+  ['Poste 9', 64, true, '', '', ''],
   ['Poste Antoine', 64, true,
     'Utilisable seulement si Antoine Genest-Grégoire n\'est pas là.',
-    'Only usable when Antoine Genest-Grégoire is not there.']
+    'Only usable when Antoine Genest-Grégoire is not there.', '']
 ];
 // Old computer names (first version of the sheet) → new names, used by loadLabComputers() to keep existing bookings attached
 const OLD_COMPUTER_NAMES = {
@@ -158,6 +162,57 @@ const MSG = {
     'If it is not confirmed {7} h before the start, it is cancelled and the slot is released to others. ' +
     'Other users cannot see who booked a slot.'],
   everyDay: ['tous les jours', 'every day'],
+  adminBookedSubject: ['Réservation faite pour vous : {0}, {1}', 'Booked for you: {0}, {1}'],
+  adminBookedBody: ['<p>Un administrateur a réservé <b>{0}</b> pour vous : <b>{1}</b>. La réservation est déjà confirmée, vous n\'avez rien à faire.</p>',
+    '<p>An administrator booked <b>{0}</b> for you: <b>{1}</b>. It is already confirmed; you don\'t need to do anything.</p>'],
+  adminChangedSubject: ['Réservation modifiée : {0}, {1}', 'Booking changed: {0}, {1}'],
+  adminChangedBody: ['<p>Un administrateur a modifié votre réservation.</p><p>Avant : {0}, {1}<br>Maintenant : <b>{2}, {3}</b></p><p>Elle est confirmée, vous n\'avez rien à faire.</p>',
+    '<p>An administrator changed your booking.</p><p>Before: {0}, {1}<br>Now: <b>{2}, {3}</b></p><p>It is confirmed; you don\'t need to do anything.</p>'],
+  noteLine: ['<p>Note : {0}</p>', '<p>Note: {0}</p>'],
+  clashOther: ['{0} a déjà réservé {1} à ce moment-là ({2}). Une personne ne peut utiliser qu\'un ordinateur à la fois.',
+    '{0} already has {1} booked at that time ({2}). A person can use one computer at a time.'],
+  slotTakenBy: ['{0} est déjà réservé à ce moment-là ({1}, {2}).', '{0} is already booked at that time ({1}, {2}).'],
+  allTaken: ['Tous les ordinateurs sont déjà réservés à ce moment-là.', 'Every computer is already booked at that time.'],
+  blockNeedsLabel: ['Donnez un libellé au blocage (p. ex. « Entretien »).', 'Give the block a label (e.g. "Maintenance").'],
+  unknownComputer: ['Ordinateur inconnu.', 'Unknown computer.'],
+  savedMsg: ['Enregistré : {0}, {1}.', 'Saved: {0}, {1}.'],
+  mailedMsg: [' Un courriel a été envoyé à {0}.', ' An email was sent to {0}.'],
+  blockedMsg: ['Bloqué : {0} ordinateur(s), {1}.', 'Blocked: {0} computer(s), {1}.'],
+  skippedMsg: [' Déjà réservés, donc non bloqués : {0}.', ' Already booked, so not blocked: {0}.'],
+  // Settings page
+  lbl_weeks: ['Semaines affichées', 'Weeks shown'],
+  lbl_maxSlots: ['Durée maximale d\'une réservation', 'Longest booking'],
+  lbl_maxUpcoming: ['Réservations à venir par personne', 'Upcoming bookings per person'],
+  lbl_reminder1: ['Premier rappel', 'First reminder'],
+  lbl_reminder2: ['Deuxième rappel', 'Second reminder'],
+  lbl_deadline: ['Date limite de confirmation', 'Confirmation deadline'],
+  setBadNumber: ['« {0} » doit être un nombre entier de {1} à {2}.', '"{0}" must be a whole number from {1} to {2}.'],
+  setBadTime: ['Les heures d\'ouverture doivent s\'écrire HH:MM, p. ex. 09:00.', 'Opening hours must be written HH:MM, e.g. 09:00.'],
+  setTimeOrder: ['L\'heure de fermeture doit laisser au moins une plage après l\'ouverture.', 'Closing time must leave at least one slot after opening.'],
+  setNoDays: ['Cochez au moins un jour d\'ouverture.', 'Tick at least one opening day.'],
+  setReminderOrder: ['Les rappels doivent partir avant la date limite de confirmation ({0} h avant le début).', 'Reminders must go out before the confirmation deadline ({0} h before the start).'],
+  setReminder2Order: ['Le deuxième rappel doit être plus près du début que le premier ({0} h).', 'The second reminder must be closer to the start than the first ({0} h).'],
+  setBadDomain: ['Domaine invalide : {0}', 'Invalid domain: {0}'],
+  setNeedName: ['Le nom du laboratoire ne peut pas être vide.', 'The lab name cannot be empty.'],
+  setSaved: ['Réglages enregistrés ({0} changement(s)).', 'Settings saved ({0} change(s)).'],
+  setNoChange: ['Aucun changement à enregistrer.', 'Nothing to save.'],
+  adminAdded: ['{0} est maintenant administrateur.', '{0} is now an admin.'],
+  adminRemoved: ['{0} n\'est plus administrateur.', '{0} is no longer an admin.'],
+  adminExists: ['{0} est déjà administrateur.', '{0} is already an admin.'],
+  adminCantRemove: ['Vous ne pouvez pas retirer {0} (votre propre compte ou le compte propriétaire).', 'You cannot remove {0} (your own account or the owner account).'],
+  compSaved: ['{0} : enregistré.', '{0}: saved.'],
+  compOn: ['{0} peut maintenant être réservé.', '{0} can now be booked.'],
+  compOff: ['{0} est maintenant indisponible.', '{0} is now unavailable.'],
+  compStillBooked: [' Attention : il a encore {0} réservation(s) à venir, qui ne sont pas annulées. Annulez-les dans l\'onglet admin au besoin.',
+    ' Note: it still has {0} upcoming booking(s), which are not cancelled. Cancel them in the admin tab if needed.'],
+  compBadRam: ['La RAM doit être un nombre entier de Go (ou vide).', 'RAM must be a whole number of GB (or blank).'],
+  compNeedName: ['Donnez un nom à l\'ordinateur (40 caractères au plus).', 'Give the computer a name (40 characters at most).'],
+  compExists: ['Il y a déjà un ordinateur nommé {0}.', 'There is already a computer named {0}.'],
+  compRenamed: [' Renommé de {0} à {1} ({2} réservation(s) mise(s) à jour).', ' Renamed from {0} to {1} ({2} booking(s) updated).'],
+  compAdded: ['{0} a été ajouté. Il peut être réservé dès maintenant.', '{0} was added. It can be booked right away.'],
+  compDeleted: ['{0} a été supprimé.', '{0} was deleted.'],
+  compHasBookings: ['{0} a encore {1} réservation(s) à venir. Annulez-les ou déplacez-les (onglet admin) avant de le supprimer, ou décochez « Réservable ».',
+    '{0} still has {1} upcoming booking(s). Cancel or move them (admin tab) before deleting it, or untick "Bookable".'],
   and: [' et ', ' and ']
 };
 
@@ -229,7 +284,7 @@ function loadLabComputers() {
     const ss = ss_();
     const sh = ss.getSheetByName(SHEET.COMPUTERS) || ss.insertSheet(SHEET.COMPUTERS);
     sh.clearContents();
-    sh.getRange('A:E').clearDataValidations();
+    sh.getRange('A:F').clearDataValidations();
     sh.getRange(1, 1, 1, COMPUTERS_HEADERS.length).setValues([COMPUTERS_HEADERS]).setFontWeight('bold');
     sh.setFrozenRows(1);
     sh.getRange(2, 3, DEFAULT_COMPUTERS.length, 1).insertCheckboxes(); // must come before the values (it resets cells to unticked)
@@ -281,11 +336,14 @@ function setup() {
     comp.getRange(2, 1, DEFAULT_COMPUTERS.length, COMPUTERS_HEADERS.length).setValues(DEFAULT_COMPUTERS);
   }
   if (!comp.getRange(1, 5).getValue()) comp.getRange(1, 5).setValue('Notes (English)').setFontWeight('bold'); // added with the computer notes
+  if (!comp.getRange(1, 6).getValue()) comp.getRange(1, 6).setValue('Software').setFontWeight('bold');        // added with the settings page
 
   // Bookings and users
   const bk = ensureSheet_(ss, SHEET.BOOKINGS, BOOKING_HEADERS);
+  repairBookings_(bk); // adds the Note / Created by headers and completes rows typed in by hand
   bk.getRange('C:D').setNumberFormat('yyyy-mm-dd hh:mm');
   bk.getRange('G:J').setNumberFormat('yyyy-mm-dd hh:mm');
+  ensureSheet_(ss, SHEET.LOG, LOG_HEADERS);
   const us = ensureSheet_(ss, SHEET.USERS, USER_HEADERS);
   if (!us.getRange(1, 5).getValue()) us.getRange(1, 5).setValue('Language').setFontWeight('bold'); // added in the bilingual version
 
@@ -589,15 +647,19 @@ function readBookings_() {
   const out = [];
   for (let i = 1; i < v.length; i++) {
     const r = v[i];
-    if (!r[B.ID - 1]) continue;
+    // Rows typed in by hand may have no ID yet (repairBookings_ fills it in); they still hold their slot.
+    if (!String(r[B.COMPUTER - 1]).trim() || r[B.START - 1] === '' || r[B.END - 1] === '') continue;
+    const start = new Date(r[B.START - 1]), end = new Date(r[B.END - 1]);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
     out.push({
       row: i + 1,
       id: String(r[B.ID - 1]),
-      computer: String(r[B.COMPUTER - 1]),
-      start: new Date(r[B.START - 1]),
-      end: new Date(r[B.END - 1]),
-      email: String(r[B.EMAIL - 1]).toLowerCase(),
-      status: String(r[B.STATUS - 1]),
+      computer: String(r[B.COMPUTER - 1]).trim(),
+      start: start,
+      end: end,
+      email: String(r[B.EMAIL - 1]).trim().toLowerCase(),
+      status: String(r[B.STATUS - 1]).trim() || STATUS.CONFIRMED, // blank status (row added by hand) = confirmed
+      note: String(r[B.NOTE - 1] == null ? '' : r[B.NOTE - 1]).trim(),
       created: r[B.CREATED - 1] instanceof Date ? r[B.CREATED - 1] : null,
       reminded: r[B.REMINDED - 1] instanceof Date ? r[B.REMINDED - 1] : null,
       key: String(r[B.KEY - 1])
@@ -607,6 +669,50 @@ function readBookings_() {
 }
 
 function isActive_(b) { return ACTIVE_STATUSES.indexOf(b.status) >= 0; }
+
+/**
+ * Completes bookings typed straight into the Bookings tab: fills in the Booking ID, the email action key,
+ * the status (Confirmed) and the created time, and adds the Note / Created by headers if missing.
+ * Runs on every edit of the Bookings tab (onEdit), every 15 minutes, and before an admin saves a booking.
+ */
+function repairBookings_(sh) {
+  sh = sh || sheet_(SHEET.BOOKINGS);
+  if (!sh.getRange(1, B.NOTE).getValue()) sh.getRange(1, B.NOTE).setValue('Note').setFontWeight('bold');
+  if (!sh.getRange(1, B.BY).getValue()) sh.getRange(1, B.BY).setValue('Created by').setFontWeight('bold');
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const v = sh.getRange(2, 1, last - 1, BOOKING_HEADERS.length).getValues();
+  let fixed = 0;
+  v.forEach((r, i) => {
+    if (r[B.ID - 1] || !String(r[B.COMPUTER - 1]).trim()) return;
+    if (!(r[B.START - 1] instanceof Date) || !(r[B.END - 1] instanceof Date)) return; // wait until both times are filled in
+    const row = i + 2;
+    sh.getRange(row, B.ID).setValue(Utilities.getUuid());
+    if (!r[B.KEY - 1]) sh.getRange(row, B.KEY).setValue(Utilities.getUuid());
+    if (!String(r[B.STATUS - 1]).trim()) sh.getRange(row, B.STATUS).setValue(STATUS.CONFIRMED);
+    if (!(r[B.CREATED - 1] instanceof Date)) sh.getRange(row, B.CREATED).setValue(new Date());
+    if (!r[B.BY - 1]) sh.getRange(row, B.BY).setValue('Spreadsheet');
+    fixed++;
+  });
+  return fixed;
+}
+
+// Simple trigger: a booking typed into the Bookings tab gets its ID, key and status right away
+function onEdit(e) {
+  try {
+    const sh = e && e.range ? e.range.getSheet() : null;
+    if (sh && sh.getName() === SHEET.BOOKINGS) repairBookings_(sh);
+  } catch (err) { /* never block the person editing */ }
+}
+
+// Where a booking sits in the day grid (date, first slot, number of slots), for the admin edit dialog
+function editInfo_(b, c) {
+  const n = slotCount_(c);
+  const p = parts_(b.start);
+  const si = Math.min(n - 1, Math.max(0, Math.round((p.h * 60 + Number(p.m) - c.dayStart) / c.slotMin)));
+  const len = Math.min(n - si, Math.max(1, Math.round((b.end - b.start) / (c.slotMin * 60000))));
+  return { id: b.id, computer: b.computer, date: fmt_(b.start, 'yyyy-MM-dd'), startIdx: si, len: len, email: b.email, note: b.note };
+}
 
 function setCells_(row, values) {
   const sh = sheet_(SHEET.BOOKINGS);
@@ -633,9 +739,15 @@ function computers_() {
       ram: String(r[1] || '').trim(),
       available: r[2] !== false && !/^(false|no|non)$/i.test(String(r[2]).trim()),
       noteFr: String(r[3] || '').trim(),
-      noteEn: String(r[4] || '').trim()
+      noteEn: String(r[4] || '').trim(),
+      software: cleanSoftware_(r[5])
     }));
   return COMPS_;
+}
+
+// "spss ; Stata,R" → "spss, Stata, R"
+function cleanSoftware_(s) {
+  return String(s == null ? '' : s).split(/[,;]+/).map(x => x.trim()).filter(Boolean).join(', ').slice(0, 200);
 }
 
 // The note of a computer in the current language (falls back to the French note)
@@ -646,8 +758,10 @@ function ramLabel_(name) {
   return c && c.ram ? T_('ram', c.ram) : '';
 }
 
-function view_(b) {
-  return { id: b.id, computer: b.computer + ramLabel_(b.computer), when: whenLabel_(b), status: b.status, email: b.email };
+function view_(b, admin) {
+  const v = { id: b.id, computer: b.computer + ramLabel_(b.computer), when: whenLabel_(b), status: b.status, email: b.email, note: b.note };
+  if (admin) v.edit = editInfo_(b, cfg_());
+  return v;
 }
 
 /* ------------------------------------------------------------------ */
@@ -664,9 +778,17 @@ function getSession(token, lang) {
     ? c.openDays.map(d => n.dLong[EN_DAYS.map(x => x.toLowerCase()).indexOf(d)] || d).join(', ')
     : T_('everyDay');
   const clock = m => time_(new Date(2000, 0, 3, 0, m));
+  // Admins get what the add / edit dialog needs: the slot boundaries and every computer
+  let adminData = null;
+  if (u.isAdmin) {
+    const labels = [];
+    for (let i = 0; i <= slotCount_(c); i++) labels.push(clock(c.dayStart + i * c.slotMin));
+    adminData = { slots: labels, today: today_(), computers: computers_().map(cp => ({ name: cp.name, ram: cp.ram, available: cp.available })) };
+  }
   return {
     email: u.email,
     isAdmin: u.isAdmin,
+    adminData: adminData,
     labName: c.labName,
     address: c.address,
     contact: c.contact,
@@ -697,8 +819,13 @@ function getDay(token, dateStr, lang) {
   const cells = slots.map(sl => comps.map(cp => {
     const b = bks.find(x => x.computer === cp.name && x.start.getTime() < sl.e && x.end.getTime() > sl.s);
     if (b) {
-      const mine = b.email === u.email;
-      if (mine || u.isAdmin) return { st: mine ? 'mine' : 'taken', id: b.id, when: whenLabel_(b), status: b.status, who: u.isAdmin ? b.email : '' };
+      const mine = !!b.email && b.email === u.email;
+      const block = !b.email; // closure / maintenance: its label is shown to everyone
+      if (u.isAdmin) {
+        return { st: block ? 'blocked' : mine ? 'mine' : 'taken', id: b.id, when: whenLabel_(b), status: b.status, who: b.email, note: b.note, edit: editInfo_(b, c) };
+      }
+      if (block) return { st: 'blocked', note: b.note };
+      if (mine) return { st: 'mine', id: b.id, when: whenLabel_(b), status: b.status, who: '' };
       return { st: 'taken' };
     }
     if (!cp.available) return { st: 'off' };
@@ -716,7 +843,7 @@ function getDay(token, dateStr, lang) {
 
   return {
     dateLabel: dayLong_(dayAt_(dateStr, 720)),
-    computers: comps.map(cp => ({ name: cp.name, ram: cp.ram, available: cp.available, note: compNote_(cp) })),
+    computers: comps.map(cp => ({ name: cp.name, ram: cp.ram, available: cp.available, note: compNote_(cp), software: cp.software })),
     slots: slots.map(s => ({ startLabel: s.startLabel, endLabel: s.endLabel })),
     cells: cells,
     calendar: calendar_(c, comps, active, u.email)
@@ -768,11 +895,11 @@ function cancelBooking(token, id, lang) {
   return withLock_(() => {
     const b = readBookings_().find(x => x.id === String(id));
     if (!b || !isActive_(b)) throw new Error(T_('noLonger'));
-    const mine = b.email === u.email;
+    const mine = !!b.email && b.email === u.email;
     if (!mine && !u.isAdmin) throw new Error(T_('onlyOwnCancel'));
     if (b.end <= new Date()) throw new Error(T_('ended'));
     cancel_(b, mine ? 'Cancelled by user' : 'Cancelled by admin (' + u.email + ')');
-    if (!mine) {
+    if (!mine && b.email) { // blocks have nobody to notify
       inUserLang_(b.email, () => safeMail_(b.email, T_('adminCancelSubject', b.computer, whenLabel_(b)),
         T_('adminCancelBody', esc_(b.computer), esc_(whenLabel_(b))), true));
     }
@@ -810,7 +937,406 @@ function getAllUpcoming(token, lang) {
   return readBookings_()
     .filter(b => isActive_(b) && b.end > now)
     .sort((a, b) => a.start - b.start)
-    .map(view_);
+    .map(b => view_(b, true));
+}
+
+/**
+ * Admins: add a booking (id blank) or change one (id set).
+ * p = { id, computer ('*' = every computer, new blocks only), date (yyyy-MM-dd), startIdx, len (slots),
+ *       mode ('self' | 'other' | 'block'), email (mode 'other'), note, notify (email the person) }
+ * Admin bookings are confirmed right away (no confirmation emails), may be any length within the day,
+ * may use computers marked unavailable and any future date. A person still uses one computer at a time.
+ */
+function adminSaveBooking(token, p, lang) {
+  setLang_(lang);
+  const u = requireUser_(token);
+  if (!u.isAdmin) throw new Error(T_('adminsOnly'));
+  const c = cfg_();
+  p = p || {};
+  const id = String(p.id || '');
+  const dateStr = String(p.date || '');
+  ymd_(dateStr);
+  if (dateStr < today_()) throw new Error(T_('passed'));
+  const n = slotCount_(c);
+  const si = Number(p.startIdx), len = Number(p.len);
+  if (!(Number.isInteger(si) && si >= 0 && si < n)) throw new Error(T_('invalidSlot'));
+  if (!(Number.isInteger(len) && len >= 1 && si + len <= n)) throw new Error(T_('invalidLength'));
+  const start = slotTime_(dateStr, si, c);
+  const end = slotTime_(dateStr, si + len, c);
+
+  // Who it is for: the admin, someone else, or nobody (a block, which needs a label)
+  const note = String(p.note || '').trim().slice(0, 200);
+  let email = '';
+  if (p.mode === 'self') email = u.email;
+  else if (p.mode === 'other') {
+    email = String(p.email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) throw new Error(T_('invalidEmail'));
+  } else if (p.mode === 'block') {
+    if (!note) throw new Error(T_('blockNeedsLabel'));
+  } else throw new Error('Unknown mode.');
+
+  const comps = computers_();
+  const names = p.computer === '*' && p.mode === 'block' && !id ? comps.map(x => x.name) : [String(p.computer)];
+  if (!names.every(nm => comps.some(x => x.name === nm))) throw new Error(T_('unknownComputer'));
+
+  return withLock_(() => {
+    repairBookings_();
+    const now = new Date();
+    const all = readBookings_();
+    const old = id ? all.find(x => x.id === id) : null;
+    if (id && (!old || !isActive_(old))) throw new Error(T_('noLonger'));
+    if (end <= now) throw new Error(T_('passed'));
+    // A new start must not be over yet (an ongoing booking can still be extended or moved to another computer)
+    if ((!old || start.getTime() !== old.start.getTime()) && slotTime_(dateStr, si + 1, c) <= now) throw new Error(T_('passed'));
+
+    // Overlaps, ignoring the booking being edited
+    const others = all.filter(b => isActive_(b) && (!old || b.id !== old.id));
+    if (email) {
+      const clash = others.find(b => b.email === email && b.start < end && b.end > start);
+      if (clash) throw new Error(T_('clashOther', email, clash.computer, whenLabel_(clash)));
+    }
+    const made = [], skipped = [];
+    let firstTaken = null;
+    names.forEach(nm => {
+      const taken = others.find(b => b.computer === nm && b.start < end && b.end > start);
+      if (taken) { skipped.push(nm); firstTaken = firstTaken || taken; } else made.push(nm);
+    });
+    if (!made.length) {
+      if (names.length > 1) throw new Error(T_('allTaken'));
+      throw new Error(T_('slotTakenBy', names[0], firstTaken.email || firstTaken.note, whenLabel_(firstTaken)));
+    }
+
+    // Write: update the row in place, or append one row per computer
+    const sh = sheet_(SHEET.BOOKINGS);
+    if (old) {
+      const cells = { [B.COMPUTER]: made[0], [B.START]: start, [B.END]: end, [B.EMAIL]: email, [B.NOTE]: note, [B.BY]: u.email };
+      if (old.status !== STATUS.CONFIRMED) { cells[B.STATUS] = STATUS.CONFIRMED; cells[B.CONFIRMED] = now; }
+      setCells_(old.row, cells);
+    } else {
+      made.forEach(nm => sh.appendRow([
+        Utilities.getUuid(), nm, start, end, email, STATUS.CONFIRMED, now, '', now, '', '', Utilities.getUuid(), note, u.email
+      ]));
+    }
+
+    // Message back to the admin, and the optional emails
+    const when = span_(start, end);
+    if (p.mode === 'block' && !old) {
+      return T_('blockedMsg', made.length, when) + (skipped.length ? T_('skippedMsg', skipped.join(', ')) : '');
+    }
+    let msg = T_('savedMsg', made[0] + ramLabel_(made[0]), when);
+    if (!p.notify) return msg;
+    const mailed = [];
+    const noteHtml = note ? T_('noteLine', esc_(note)) : '';
+    if (email && email !== u.email) {
+      const changedSamePerson = old && old.email === email;
+      const sent = inUserLang_(email, () => changedSamePerson
+        ? safeMail_(email, T_('adminChangedSubject', made[0], span_(start, end)),
+            T_('adminChangedBody', esc_(old.computer), esc_(whenLabel_(old)), esc_(made[0]), esc_(span_(start, end))) + noteHtml, true)
+        : safeMail_(email, T_('adminBookedSubject', made[0], span_(start, end)),
+            T_('adminBookedBody', esc_(made[0]), esc_(span_(start, end))) + noteHtml, true));
+      if (sent) mailed.push(email);
+    }
+    // The booking was moved away from someone else: tell them theirs is cancelled
+    if (old && old.email && old.email !== email && old.email !== u.email) {
+      const sent = inUserLang_(old.email, () => safeMail_(old.email, T_('adminCancelSubject', old.computer, whenLabel_(old)),
+        T_('adminCancelBody', esc_(old.computer), esc_(whenLabel_(old))), true));
+      if (sent) mailed.push(old.email);
+    }
+    if (mailed.length) msg += T_('mailedMsg', mailed.join(', '));
+    return msg;
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Settings page (admins): rules, computers, admins, change history     */
+/* ------------------------------------------------------------------ */
+
+function requireAdmin_(token) {
+  const u = requireUser_(token);
+  if (!u.isAdmin) throw new Error(T_('adminsOnly'));
+  return u;
+}
+
+// The account that owns the script (it sends the emails); it can never be removed from the admins
+function ownerEmail_() { return String(Session.getEffectiveUser().getEmail() || '').toLowerCase(); }
+
+function hhmm_(minutes) { return ('0' + Math.floor(minutes / 60)).slice(-2) + ':' + ('0' + (minutes % 60)).slice(-2); }
+
+// Writes one Config value (adds the row if missing) and records the change in the Log tab. Returns true if it changed.
+function setConfig_(key, value, who) {
+  const sh = sheet_(SHEET.CONFIG);
+  const v = sh.getDataRange().getValues();
+  value = String(value);
+  for (let i = 1; i < v.length; i++) {
+    if (String(v[i][0]).trim() !== key) continue;
+    const before = v[i][1] instanceof Date ? hhmm_(toMinutes_(v[i][1], 0)) : String(v[i][1]);
+    if (before.trim() === value.trim()) return false;
+    sh.getRange(i + 1, 2).setValue(value);
+    log_(who, key, before, value);
+    return true;
+  }
+  const d = DEFAULT_CONFIG.find(x => x[0] === key);
+  sh.appendRow([key, value, d ? d[2] : '']);
+  log_(who, key, '', value);
+  return true;
+}
+
+function log_(who, what, before, after) {
+  const ss = ss_();
+  const sh = ss.getSheetByName(SHEET.LOG) || ensureSheet_(ss, SHEET.LOG, LOG_HEADERS);
+  sh.appendRow([new Date(), who, what, String(before), String(after)]);
+}
+
+/** Everything the settings page shows. */
+function getSettings(token, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  const c = cfg_();
+  const owner = ownerEmail_();
+  const logSh = ss_().getSheetByName(SHEET.LOG);
+  const logRows = logSh && logSh.getLastRow() > 1
+    ? logSh.getRange(Math.max(2, logSh.getLastRow() - 24), 1, Math.min(25, logSh.getLastRow() - 1), 5).getValues().reverse()
+    : [];
+  return {
+    labName: c.labName, address: c.address, contact: c.contact, replyTo: c.replyTo,
+    domains: c.domains.join(', '),
+    dayStart: hhmm_(c.dayStart), dayEnd: hhmm_(c.dayEnd),
+    openDays: c.openDays,
+    weeks: c.weeks, maxSlots: c.maxSlots, maxUpcoming: c.maxUpcoming, slotMin: c.slotMin,
+    reminder1: c.reminders[0], reminder2: c.reminders.length > 1 ? c.reminders[1] : '', deadline: c.deadlineH,
+    admins: c.admins.map(e => ({ email: e, locked: e === owner || e === u.email })),
+    computers: computers_().map(cp => ({ name: cp.name, ram: cp.ram, available: cp.available, noteFr: cp.noteFr, noteEn: cp.noteEn, software: cp.software })),
+    log: logRows.filter(r => r[0] instanceof Date).map(r => ({
+      when: dayShort_(r[0]) + ', ' + time_(r[0]), who: String(r[1]), what: String(r[2]), before: String(r[3]), after: String(r[4])
+    }))
+  };
+}
+
+/** Saves the rules form: confirmation emails, opening days and hours, limits, lab info. */
+function saveRules(token, r, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  const c = cfg_();
+  r = r || {};
+  const int = (v, lbl, lo, hi) => {
+    const s = String(v == null ? '' : v).trim();
+    const n = Number(s);
+    if (s === '' || !Number.isInteger(n) || n < lo || n > hi) throw new Error(T_('setBadNumber', T_(lbl), lo, hi));
+    return n;
+  };
+
+  // Opening hours and days
+  const tm = s => { const m = /^(\d{1,2})[:h](\d{2})$/.exec(String(s || '').trim()); if (!m || +m[1] > 23 || +m[2] > 59) throw new Error(T_('setBadTime')); return +m[1] * 60 + +m[2]; };
+  const start = tm(r.dayStart), end = tm(r.dayEnd);
+  const slots = Math.floor((end - start) / c.slotMin);
+  if (slots < 1) throw new Error(T_('setTimeOrder'));
+  const days = EN_DAYS.filter(d => (r.openDays || []).map(x => String(x).toLowerCase()).indexOf(d.toLowerCase()) >= 0);
+  if (!days.length) throw new Error(T_('setNoDays'));
+
+  // Limits
+  const weeks = int(r.weeks, 'lbl_weeks', 1, 12);
+  const maxSlots = int(r.maxSlots, 'lbl_maxSlots', 1, slots);
+  const maxUpcoming = int(r.maxUpcoming, 'lbl_maxUpcoming', 1, 100);
+
+  // Confirmation emails: reminders must come before the deadline, the second one closer to the start than the first
+  const deadline = int(r.deadline, 'lbl_deadline', 0, 168);
+  const r1 = int(r.reminder1, 'lbl_reminder1', 1, 336);
+  if (r1 <= deadline) throw new Error(T_('setReminderOrder', deadline));
+  let reminders = String(r1);
+  if (String(r.reminder2 == null ? '' : r.reminder2).trim() !== '') {
+    const r2 = int(r.reminder2, 'lbl_reminder2', 1, 336);
+    if (r2 >= r1) throw new Error(T_('setReminder2Order', r1));
+    if (r2 <= deadline) throw new Error(T_('setReminderOrder', deadline));
+    reminders += ', ' + r2;
+  }
+
+  // Lab info and who may register
+  const labName = String(r.labName || '').trim();
+  if (!labName) throw new Error(T_('setNeedName'));
+  const replyTo = String(r.replyTo || '').trim().toLowerCase();
+  if (replyTo && !EMAIL_RE.test(replyTo)) throw new Error(T_('invalidEmail'));
+  const domains = String(r.domains || '').split(/[,;\s]+/).map(s => s.trim().toLowerCase().replace(/^@/, '')).filter(Boolean);
+  domains.forEach(d => { if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) throw new Error(T_('setBadDomain', d)); });
+
+  const values = {
+    LAB_NAME: labName,
+    LAB_ADDRESS: String(r.address || '').trim(),
+    LAB_CONTACT: String(r.contact || '').trim(),
+    REPLY_TO: replyTo,
+    ALLOWED_EMAIL_DOMAINS: domains.join(', '),
+    DAY_START: hhmm_(start),
+    DAY_END: hhmm_(end),
+    OPEN_DAYS: days.join(','),
+    BOOKING_WEEKS: weeks,
+    MAX_SLOTS_PER_BOOKING: maxSlots,
+    MAX_UPCOMING_BOOKINGS: maxUpcoming,
+    CONFIRM_REMINDER_HOURS: reminders,
+    CONFIRM_DEADLINE_HOURS: deadline
+  };
+  return withLock_(() => {
+    let changed = 0;
+    Object.keys(values).forEach(k => { if (setConfig_(k, values[k], u.email)) changed++; });
+    CFG_ = null;
+    return changed ? T_('setSaved', changed) : T_('setNoChange');
+  });
+}
+
+// Row number of a computer in the Computers tab (-1 if absent); also adds the Software header if missing
+function compRow_(sh, name) {
+  if (!sh.getRange(1, 6).getValue()) sh.getRange(1, 6).setValue('Software').setFontWeight('bold');
+  const v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) if (String(v[i][0]).trim().toLowerCase() === String(name).trim().toLowerCase()) return i + 1;
+  return -1;
+}
+
+// Upcoming active bookings on a computer
+function upcomingOn_(name) {
+  const now = new Date();
+  return readBookings_().filter(b => isActive_(b) && b.computer === name && b.end > now).length;
+}
+
+// Checks the editable fields of a computer and returns them cleaned up
+function compFields_(p) {
+  const name = String(p.name == null ? '' : p.name).trim();
+  if (!name || name.length > 40) throw new Error(T_('compNeedName'));
+  const ram = String(p.ram == null ? '' : p.ram).trim();
+  if (ram && !/^\d{1,4}$/.test(ram)) throw new Error(T_('compBadRam'));
+  return {
+    name: name, ram: ram === '' ? '' : Number(ram),
+    noteFr: String(p.noteFr || '').trim().slice(0, 300), noteEn: String(p.noteEn || '').trim().slice(0, 300),
+    software: cleanSoftware_(p.software)
+  };
+}
+
+/**
+ * Saves one computer: name, bookable or not, RAM, notes, software.
+ * Renaming also renames every booking made on it (past ones too), so nothing gets detached.
+ */
+function saveComputer(token, name, p, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  p = p || {};
+  if (p.name == null) p.name = name;
+  const f = compFields_(p);
+  return withLock_(() => {
+    const sh = sheet_(SHEET.COMPUTERS);
+    const row = compRow_(sh, name);
+    if (row < 0) throw new Error(T_('unknownComputer'));
+    if (f.name.toLowerCase() !== String(name).toLowerCase() && compRow_(sh, f.name) > 0) throw new Error(T_('compExists', f.name));
+    const old = sh.getRange(row, 1, 1, 6).getValues()[0];
+    const wasOn = old[2] !== false && !/^(false|no|non)$/i.test(String(old[2]).trim());
+    const on = p.available === true;
+    const next = [f.name, f.ram, on, f.noteFr, f.noteEn, f.software];
+    const before = [String(old[0]).trim(), String(old[1]), wasOn, String(old[3] || ''), String(old[4] || ''), String(old[5] || '')];
+    next.forEach((val, k) => {
+      if (String(before[k]).trim() === String(val).trim()) return;
+      sh.getRange(row, 1 + k).setValue(val);
+      log_(u.email, before[0] + ' – ' + COMPUTERS_HEADERS[k], before[k], val);
+    });
+
+    // Rename: move every booking to the new name
+    let renamed = 0;
+    if (f.name !== before[0]) {
+      const bk = sheet_(SHEET.BOOKINGS);
+      if (bk.getLastRow() > 1) {
+        const col = bk.getRange(2, B.COMPUTER, bk.getLastRow() - 1, 1);
+        const vals = col.getValues().map(r => {
+          if (String(r[0]).trim() === before[0]) { renamed++; return [f.name]; }
+          return [r[0]];
+        });
+        if (renamed) col.setValues(vals);
+      }
+    }
+    COMPS_ = null;
+    const renMsg = f.name !== before[0] ? T_('compRenamed', before[0], f.name, renamed) : '';
+    if (on === wasOn) return T_('compSaved', f.name) + renMsg;
+    if (on) return T_('compOn', f.name) + renMsg;
+    const still = upcomingOn_(f.name);
+    return T_('compOff', f.name) + renMsg + (still ? T_('compStillBooked', still) : '');
+  });
+}
+
+/** Adds a computer at the end of the list, bookable right away. */
+function addComputer(token, p, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  const f = compFields_(p || {});
+  return withLock_(() => {
+    const sh = sheet_(SHEET.COMPUTERS);
+    if (compRow_(sh, f.name) > 0) throw new Error(T_('compExists', f.name));
+    sh.appendRow([f.name, f.ram, true, f.noteFr, f.noteEn, f.software]);
+    const row = sh.getLastRow();
+    sh.getRange(row, 3).insertCheckboxes().setValue(true); // checkbox first: inserting it unticks the cell
+    log_(u.email, 'Computer added', '', [f.name, f.ram ? f.ram + ' GB' : '', f.software].filter(Boolean).join(' · '));
+    COMPS_ = null;
+    return T_('compAdded', f.name);
+  });
+}
+
+/** Deletes a computer that has no upcoming bookings (past bookings stay in the Bookings tab under its name). */
+function deleteComputer(token, name, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  return withLock_(() => {
+    const sh = sheet_(SHEET.COMPUTERS);
+    const row = compRow_(sh, name);
+    if (row < 0) throw new Error(T_('unknownComputer'));
+    const still = upcomingOn_(name);
+    if (still) throw new Error(T_('compHasBookings', name, still));
+    sh.deleteRow(row);
+    log_(u.email, 'Computer deleted', name, '');
+    COMPS_ = null;
+    return T_('compDeleted', name);
+  });
+}
+
+/** Moves a computer one place up (dir = -1) or down (dir = 1) in the list; the booking grid uses this order. */
+function moveComputer(token, name, dir, lang) {
+  setLang_(lang);
+  requireAdmin_(token);
+  return withLock_(() => {
+    const sh = sheet_(SHEET.COMPUTERS);
+    const row = compRow_(sh, name);
+    if (row < 0) throw new Error(T_('unknownComputer'));
+    const other = row + (Number(dir) < 0 ? -1 : 1);
+    if (other < 2 || other > sh.getLastRow()) return T_('compSaved', name);
+    const a = sh.getRange(row, 1, 1, 6), b = sh.getRange(other, 1, 1, 6);
+    const av = a.getValues(), bv = b.getValues();
+    a.setValues(bv);
+    b.setValues(av);
+    COMPS_ = null;
+    return T_('compSaved', name);
+  });
+}
+
+function addAdmin(token, email, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  email = String(email || '').trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new Error(T_('invalidEmail'));
+  return withLock_(() => {
+    CFG_ = null;
+    const list = cfg_().admins;
+    if (list.indexOf(email) >= 0) throw new Error(T_('adminExists', email));
+    setConfig_('ADMIN_EMAILS', list.concat([email]).join(', '), u.email);
+    CFG_ = null;
+    return T_('adminAdded', email);
+  });
+}
+
+function removeAdmin(token, email, lang) {
+  setLang_(lang);
+  const u = requireAdmin_(token);
+  email = String(email || '').trim().toLowerCase();
+  if (email === u.email || email === ownerEmail_()) throw new Error(T_('adminCantRemove', email));
+  return withLock_(() => {
+    CFG_ = null;
+    const list = cfg_().admins;
+    if (list.indexOf(email) < 0) return T_('adminRemoved', email);
+    setConfig_('ADMIN_EMAILS', list.filter(e => e !== email).join(', '), u.email);
+    CFG_ = null;
+    return T_('adminRemoved', email);
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -901,6 +1427,7 @@ function doGet(e) {
 function processBookings() {
   const c = cfg_();
   withLock_(() => {
+    repairBookings_();
     const now = Date.now();
     const langOf = {};
     sheet_(SHEET.USERS).getDataRange().getValues().slice(1).forEach(r => {
@@ -908,7 +1435,7 @@ function processBookings() {
     });
     readBookings_().filter(isActive_).forEach(b => {
       const s = b.start.getTime();
-      if (b.end.getTime() <= now || b.status === STATUS.CONFIRMED) return;
+      if (b.end.getTime() <= now || b.status === STATUS.CONFIRMED || !b.email || !b.id) return; // blocks get no emails
       setLang_(langOf[b.email] || 'fr');
       const when = whenLabel_(b);
 
