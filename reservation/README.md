@@ -5,7 +5,14 @@
 - **Booking site:** https://script.google.com/macros/s/AKfycbzgE_lN2AWzTbcQvCm7bzf5fy8uheLRnaHcGYSW-6leyserfmL2deMPDPPlGUmqa-xu/exec
 - **Owner account:** reservation.ciqss.uqam@gmail.com (owns the spreadsheet, the script, the deployment and sends all emails)
 - **Spreadsheet:** "CIQSS booking" in that account's Google Drive. The script is under Extensions → Apps Script.
-- **Live version:** 8 (Nov 5, 2026: admin bookings and blocks, settings page, computer management). To update the code: paste the new files, save, then Deploy → Manage deployments → pencil → Version: New version → Deploy. The URL stays the same.
+- **Live version:** 9 (Nov 5, 2026: per-day opening hours; version 8 added admin bookings and blocks, the settings page and computer management).
+- **Script ID:** `1ylQ1ksWDsqL7IEIOMiJWggh7urai7odijEbLlaDj2pYfBnrIfrKj3WXq`. **Deployment ID** (the live URL): `AKfycbzgE_lN2AWzTbcQvCm7bzf5fy8uheLRnaHcGYSW-6leyserfmL2deMPDPPlGUmqa-xu`.
+- **To update the code**, either:
+  - **Command line (clasp)**, logged in as the owner account: `clasp clone <script ID>` into an empty folder, copy `Code.gs` → `Code.js` and `Index_2.html` → `Index.html`, then `clasp push --force` and `clasp deploy -i <deployment ID> -d "what changed"`.
+  - **Editor:** paste the new files, save, then Deploy → Manage deployments → pencil → Version: New version → Deploy.
+
+  Either way the URL stays the same. To roll back, point the deployment at an earlier version (Manage deployments → pencil → pick the version).
+- **Don't sign the owner account into your everyday browser.** Google then sends the booking link to that account, and when it isn't the browser's first account the page shows "Sorry, unable to open the file". Use a private window or a separate browser profile for it. Researchers are not affected.
 
 ## Admin tasks
 
